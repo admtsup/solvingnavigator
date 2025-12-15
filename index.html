@@ -1,15 +1,18 @@
 <!doctype html>
-<html lang="id" class="h-full">
+<html lang="id">
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Solving Navigator</title>
-  <script src="/_sdk/element_sdk.js"></script>
+  <title>⚡ SOLVING NAVIGATOR</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: #f9fafb;
     }
     .toast {
       position: fixed;
@@ -73,15 +76,10 @@
     .gradient-bg {
       background: #f9fafb;
       position: relative;
+      min-height: 100vh;
     }
     .neon-border {
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    .category-badge {
-      animation: none;
-    }
-    .stat-number {
-      text-shadow: none;
     }
     .problem-card {
       background: #ffffff;
@@ -102,28 +100,23 @@
   </style>
   <style>@view-transition { navigation: auto; }</style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
  </head>
- <body class="h-full">
-  <div id="app" class="h-full w-full"></div>
+ <body>
+  <div id="app"></div>
   <script>
-    const defaultConfig = {
-      app_title: "⚡ SOLVING NAVIGATOR",
-      login_password: "ADMIN123!",
-      primary_color: "#3b82f6",
-      secondary_color: "#f3f4f6",
-      text_color: "#1f2937",
-      card_bg_color: "#ffffff",
-      accent_color: "#2563eb",
-      font_family: "system-ui",
-      font_size: 16
-    };
-
-    // Masukkan Supabase URL dan Anon Key kamu di sini
+    // ⚠️ MASUKKAN SUPABASE URL DAN ANON KEY KAMU DI SINI
     const SUPABASE_URL = "https://utqjiwmdjgcjyvcqqcqq.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0cWppd21kamdjanl2Y3FxY3FxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3NjU0MTAsImV4cCI6MjA4MTM0MTQxMH0.Xa1m9G2sjzNAdgxmDpE0NYjPCd0G7N8yIpCuBxkXIF4";
 
+    const ADMIN_PASSWORD = "ADMIN123!";
+
     let supabase = null;
-    let appData = [];
+    let appData = {
+      problems: [],
+      masters: [],
+      history: []
+    };
     let currentTab = 'dashboard';
     let isAuthenticated = false;
     let inactivityTimer = null;
@@ -382,13 +375,13 @@
       
       if (deleteBtn.textContent === '🗑️ HAPUS') {
         deleteBtn.textContent = '⚠️ KONFIRMASI HAPUS?';
-        deleteBtn.classList.remove('bg-gradient-to-r', 'from-red-500', 'to-rose-600');
-        deleteBtn.classList.add('bg-gradient-to-r', 'from-orange-500', 'to-amber-600');
+        deleteBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+        deleteBtn.classList.add('bg-orange-600', 'hover:bg-orange-700');
         setTimeout(() => {
           if (deleteBtn && deleteBtn.textContent === '⚠️ KONFIRMASI HAPUS?') {
             deleteBtn.textContent = '🗑️ HAPUS';
-            deleteBtn.classList.remove('bg-gradient-to-r', 'from-orange-500', 'to-amber-600');
-            deleteBtn.classList.add('bg-gradient-to-r', 'from-red-500', 'to-rose-600');
+            deleteBtn.classList.remove('bg-orange-600', 'hover:bg-orange-700');
+            deleteBtn.classList.add('bg-red-600', 'hover:bg-red-700');
           }
         }, 3000);
         return;
@@ -430,7 +423,6 @@
       const editBtn = document.getElementById(`master-${recordId}`).querySelector('.edit-btn');
       
       if (deptField.disabled) {
-        // Enable edit mode
         deptField.disabled = false;
         areaField.disabled = false;
         prosesField.disabled = false;
@@ -445,7 +437,6 @@
         editBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
         editBtn.classList.add('bg-green-600', 'hover:bg-green-700');
       } else {
-        // Save changes
         const record = appData.masters.find(r => r.id === recordId);
         updateMasterRecord(record, {
           departemen: deptField.value,
@@ -500,49 +491,48 @@
       getMasterDataFromRecords();
       const scores = calculateScores();
       const problems = getFilteredProblems();
-      const config = window.elementSdk.config;
 
       if (!supabase) {
         return `
-          <div style="background: ${config.card_bg_color || defaultConfig.card_bg_color};" class="rounded-xl p-8 shadow-2xl text-center neon-border">
-            <h2 style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.5}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold mb-4">⚠️ KONFIGURASI SUPABASE</h2>
-            <p style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px; color: ${config.text_color || defaultConfig.text_color};" class="mb-4">Silakan masukkan Supabase URL dan Anon Key di dalam kode.</p>
-            <p style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="opacity-70">Edit konstanta SUPABASE_URL dan SUPABASE_ANON_KEY di bagian script.</p>
+          <div class="rounded-xl p-8 shadow-2xl text-center neon-border bg-white">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">⚠️ KONFIGURASI SUPABASE</h2>
+            <p class="text-base mb-4 text-gray-600">Silakan masukkan Supabase URL dan Anon Key di dalam kode.</p>
+            <p class="text-sm text-gray-500">Edit konstanta SUPABASE_URL dan SUPABASE_ANON_KEY di bagian script.</p>
           </div>
         `;
       }
 
       return `
         <div class="space-y-6">
-          <div style="background: linear-gradient(135deg, ${config.primary_color || defaultConfig.primary_color} 0%, ${config.accent_color || defaultConfig.accent_color} 100%);" class="rounded-2xl p-8 text-white shadow-2xl neon-border">
-            <h2 style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.75}px;" class="font-bold mb-6 flex items-center gap-3">
+          <div class="rounded-2xl p-8 text-white shadow-2xl neon-border" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+            <h2 class="text-3xl font-bold mb-6 flex items-center gap-3">
               🔍 FILTER DATA
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="block mb-2 font-bold" for="filter-departemen">📂 DEPARTEMEN</label>
-                <select id="filter-departemen" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 rounded-xl border-2 border-white/30" onchange="filters.departemen = this.value; renderApp();">
+                <label class="block mb-2 font-bold text-sm" for="filter-departemen">📂 DEPARTEMEN</label>
+                <select id="filter-departemen" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 text-base" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white;" onchange="filters.departemen = this.value; renderApp();">
                   <option value="" style="color: #1e293b;">SEMUA</option>
                   ${masterData.departemen.map(d => `<option value="${d}" ${filters.departemen === d ? 'selected' : ''} style="color: #1e293b;">${d}</option>`).join('')}
                 </select>
               </div>
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="block mb-2 font-bold" for="filter-mesin">⚙️ MESIN</label>
-                <select id="filter-mesin" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 rounded-xl border-2 border-white/30" onchange="filters.mesin = this.value; renderApp();">
+                <label class="block mb-2 font-bold text-sm" for="filter-mesin">⚙️ MESIN</label>
+                <select id="filter-mesin" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 text-base" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white;" onchange="filters.mesin = this.value; renderApp();">
                   <option value="" style="color: #1e293b;">SEMUA</option>
                   ${masterData.mesin.map(m => `<option value="${m}" ${filters.mesin === m ? 'selected' : ''} style="color: #1e293b;">${m}</option>`).join('')}
                 </select>
               </div>
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="block mb-2 font-bold" for="filter-area">📍 AREA</label>
-                <select id="filter-area" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 rounded-xl border-2 border-white/30" onchange="filters.area = this.value; renderApp();">
+                <label class="block mb-2 font-bold text-sm" for="filter-area">📍 AREA</label>
+                <select id="filter-area" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 text-base" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white;" onchange="filters.area = this.value; renderApp();">
                   <option value="" style="color: #1e293b;">SEMUA</option>
                   ${masterData.area.map(a => `<option value="${a}" ${filters.area === a ? 'selected' : ''} style="color: #1e293b;">${a}</option>`).join('')}
                 </select>
               </div>
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="block mb-2 font-bold" for="filter-proses">🔧 PROSES</label>
-                <select id="filter-proses" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 rounded-xl border-2 border-white/30" onchange="filters.proses = this.value; renderApp();">
+                <label class="block mb-2 font-bold text-sm" for="filter-proses">🔧 PROSES</label>
+                <select id="filter-proses" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 text-base" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white;" onchange="filters.proses = this.value; renderApp();">
                   <option value="" style="color: #1e293b;">SEMUA</option>
                   ${masterData.proses.map(p => `<option value="${p}" ${filters.proses === p ? 'selected' : ''} style="color: #1e293b;">${p}</option>`).join('')}
                 </select>
@@ -552,76 +542,76 @@
 
           <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div class="score-card rounded-2xl p-8 text-white shadow-2xl">
-              <div style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="text-sm opacity-90 mb-2 font-bold">📊 TOTAL PROBLEM</div>
-              <div style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 3}px;" class="font-black stat-number">${scores.total}</div>
+              <div class="text-sm opacity-90 mb-2 font-bold">📊 TOTAL PROBLEM</div>
+              <div class="text-5xl font-black">${scores.total}</div>
             </div>
-            <div style="background: linear-gradient(135deg, ${config.accent_color || defaultConfig.accent_color} 0%, #fb923c 100%);" class="rounded-2xl p-8 text-white shadow-2xl">
-              <div style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="text-sm opacity-90 mb-2 font-bold">✨ QUALITY</div>
-              <div style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 3}px;" class="font-black stat-number">${scores.quality}</div>
+            <div class="rounded-2xl p-8 text-white shadow-2xl" style="background: linear-gradient(135deg, #2563eb 0%, #fb923c 100%);">
+              <div class="text-sm opacity-90 mb-2 font-bold">✨ QUALITY</div>
+              <div class="text-5xl font-black">${scores.quality}</div>
             </div>
-            <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);" class="rounded-2xl p-8 text-white shadow-2xl">
-              <div style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="text-sm opacity-90 mb-2 font-bold">⚡ PRODUCTIVITY</div>
-              <div style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 3}px;" class="font-black stat-number">${scores.productivity}</div>
+            <div class="rounded-2xl p-8 text-white shadow-2xl" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+              <div class="text-sm opacity-90 mb-2 font-bold">⚡ PRODUCTIVITY</div>
+              <div class="text-5xl font-black">${scores.productivity}</div>
             </div>
-            <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);" class="rounded-2xl p-8 text-white shadow-2xl">
-              <div style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="text-sm opacity-90 mb-2 font-bold">🛡️ SAFETY</div>
-              <div style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 3}px;" class="font-black stat-number">${scores.safety}</div>
+            <div class="rounded-2xl p-8 text-white shadow-2xl" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+              <div class="text-sm opacity-90 mb-2 font-bold">🛡️ SAFETY</div>
+              <div class="text-5xl font-black">${scores.safety}</div>
             </div>
           </div>
 
-          <div style="background: ${config.card_bg_color || defaultConfig.card_bg_color};" class="rounded-2xl p-8 shadow-2xl neon-border">
-            <h3 style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.5}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold mb-6 flex items-center gap-3">
+          <div class="rounded-2xl p-8 shadow-2xl neon-border bg-white">
+            <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-gray-800">
               📋 DETAIL PROBLEM
             </h3>
             <div class="space-y-4">
-              ${problems.length === 0 ? `<p style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px; color: ${config.text_color || defaultConfig.text_color};" class="text-center py-12 opacity-70">Belum ada problem yang tercatat</p>` : ''}
+              ${problems.length === 0 ? `<p class="text-center py-12 opacity-70 text-gray-600">Belum ada problem yang tercatat</p>` : ''}
               ${problems.map(p => `
                 <div class="problem-card card p-6 rounded-2xl shadow-lg">
                   <div class="flex justify-between items-start mb-4">
                     <div>
-                      <h4 style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.25}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold mb-2">${p.judul_problem}</h4>
-                      <p style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="opacity-60">🕐 ${new Date(p.created_at).toLocaleString('id-ID')}</p>
+                      <h4 class="text-xl font-bold mb-2 text-gray-800">${p.judul_problem}</h4>
+                      <p class="text-sm opacity-60 text-gray-600">🕐 ${new Date(p.created_at).toLocaleString('id-ID')}</p>
                     </div>
-                    <span style="background: ${p.kategori_problem === 'QUALITY' ? 'linear-gradient(135deg, #f59e0b 0%, #fb923c 100%)' : p.kategori_problem === 'PRODUCTIVITY' ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.75}px;" class="category-badge px-4 py-2 rounded-full text-white text-xs font-black shadow-lg">${p.kategori_problem}</span>
+                    <span class="px-4 py-2 rounded-full text-white text-xs font-black shadow-lg" style="background: ${p.kategori_problem === 'QUALITY' ? 'linear-gradient(135deg, #f59e0b 0%, #fb923c 100%)' : p.kategori_problem === 'PRODUCTIVITY' ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'}">${p.kategori_problem}</span>
                   </div>
                   <div class="grid grid-cols-2 gap-4 text-sm mb-4">
                     <div class="flex items-center gap-2">
-                      <span style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold">👤 Personil:</span>
-                      <span style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.accent_color || defaultConfig.accent_color};" class="font-semibold">${p.inisial_personil}</span>
+                      <span class="font-bold text-gray-700">👤 Personil:</span>
+                      <span class="font-semibold text-blue-600">${p.inisial_personil}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                      <span style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold">📂 Departemen:</span>
-                      <span style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.accent_color || defaultConfig.accent_color};" class="font-semibold">${p.departemen}</span>
+                      <span class="font-bold text-gray-700">📂 Departemen:</span>
+                      <span class="font-semibold text-blue-600">${p.departemen}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                      <span style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold">⚙️ Mesin:</span>
-                      <span style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.accent_color || defaultConfig.accent_color};" class="font-semibold">${p.mesin}</span>
+                      <span class="font-bold text-gray-700">⚙️ Mesin:</span>
+                      <span class="font-semibold text-blue-600">${p.mesin}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                      <span style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold">📦 Produk:</span>
-                      <span style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.accent_color || defaultConfig.accent_color};" class="font-semibold">${p.nama_produk}</span>
+                      <span class="font-bold text-gray-700">📦 Produk:</span>
+                      <span class="font-semibold text-blue-600">${p.nama_produk}</span>
                     </div>
                   </div>
                   ${p.investigasi ? `
-                    <div class="mt-4 pt-4 border-t border-white/10">
-                      <span style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold flex items-center gap-2 mb-2">🔍 Investigasi:</span>
-                      <p style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="opacity-80">${p.investigasi}</p>
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                      <span class="font-bold flex items-center gap-2 mb-2 text-gray-700">🔍 Investigasi:</span>
+                      <p class="opacity-80 text-gray-600">${p.investigasi}</p>
                     </div>
                   ` : ''}
                   ${p.action ? `
-                    <div class="mt-4 pt-4 border-t border-white/10">
-                      <span style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold flex items-center gap-2 mb-2">✅ Action:</span>
-                      <p style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="opacity-80">${p.action}</p>
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                      <span class="font-bold flex items-center gap-2 mb-2 text-gray-700">✅ Action:</span>
+                      <p class="opacity-80 text-gray-600">${p.action}</p>
                     </div>
                   ` : ''}
                   ${p.evaluasi ? `
-                    <div class="mt-4 pt-4 border-t border-white/10">
-                      <span style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold flex items-center gap-2 mb-2">⭐ Evaluasi:</span>
-                      <p style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="opacity-80">${p.evaluasi}</p>
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                      <span class="font-bold flex items-center gap-2 mb-2 text-gray-700">⭐ Evaluasi:</span>
+                      <p class="opacity-80 text-gray-600">${p.evaluasi}</p>
                     </div>
                   ` : ''}
                   ${p.foto_kejadian || p.foto_perbaikan ? `
-                    <div class="mt-4 pt-4 border-t border-white/10 flex gap-3">
+                    <div class="mt-4 pt-4 border-t border-gray-200 flex gap-3">
                       ${p.foto_kejadian ? `<img src="${p.foto_kejadian}" alt="Foto Kejadian" class="w-32 h-32 object-cover rounded-xl shadow-lg border-2 border-red-500" onerror="this.style.display='none'; this.alt='Gagal memuat gambar';">` : ''}
                       ${p.foto_perbaikan ? `<img src="${p.foto_perbaikan}" alt="Foto Perbaikan" class="w-32 h-32 object-cover rounded-xl shadow-lg border-2 border-green-500" onerror="this.style.display='none'; this.alt='Gagal memuat gambar';">` : ''}
                     </div>
@@ -636,38 +626,37 @@
 
     function renderInput() {
       if (!supabase) {
-        return `<div style="background: ${window.elementSdk.config.card_bg_color || defaultConfig.card_bg_color};" class="rounded-2xl p-8 shadow-2xl text-center neon-border">
-          <p style="font-family: ${window.elementSdk.config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${window.elementSdk.config.font_size || defaultConfig.font_size}px; color: ${window.elementSdk.config.text_color || defaultConfig.text_color};">⚠️ Supabase belum dikonfigurasi</p>
+        return `<div class="rounded-2xl p-8 shadow-2xl text-center neon-border bg-white">
+          <p class="text-gray-600">⚠️ Supabase belum dikonfigurasi</p>
         </div>`;
       }
 
       getMasterDataFromRecords();
-      const config = window.elementSdk.config;
 
       return `
-        <div style="background: ${config.card_bg_color || defaultConfig.card_bg_color};" class="rounded-2xl p-8 shadow-2xl max-w-4xl mx-auto neon-border">
-          <h2 style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.75}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold mb-8 flex items-center gap-3">
+        <div class="rounded-2xl p-8 shadow-2xl max-w-4xl mx-auto neon-border bg-white">
+          <h2 class="text-3xl font-bold mb-8 flex items-center gap-3 text-gray-800">
             ✏️ INPUT PROBLEM
           </h2>
           
           <form id="problem-form" class="space-y-6" onsubmit="event.preventDefault(); submitProblem();">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="inisial">👤 INISIAL PERSONIL *</label>
-                <input type="text" id="inisial" value="${formData.inisial_personil}" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.primary_color || defaultConfig.primary_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" required oninput="formData.inisial_personil = this.value.toUpperCase(); this.value = this.value.toUpperCase();">
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="inisial">👤 INISIAL PERSONIL *</label>
+                <input type="text" id="inisial" value="${formData.inisial_personil}" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" required oninput="formData.inisial_personil = this.value.toUpperCase(); this.value = this.value.toUpperCase();">
               </div>
 
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="departemen-input">📂 DEPARTEMEN *</label>
-                <select id="departemen-input" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.primary_color || defaultConfig.primary_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" required onchange="formData.departemen = this.value; renderApp();">
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="departemen-input">📂 DEPARTEMEN *</label>
+                <select id="departemen-input" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" required onchange="formData.departemen = this.value; renderApp();">
                   <option value="">PILIH DEPARTEMEN</option>
                   ${masterData.departemen.map(d => `<option value="${d}" ${formData.departemen === d ? 'selected' : ''}>${d}</option>`).join('')}
                 </select>
               </div>
 
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="mesin-input">⚙️ MESIN</label>
-                <select id="mesin-input" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.primary_color || defaultConfig.primary_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" onchange="formData.mesin = this.value;">
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="mesin-input">⚙️ MESIN</label>
+                <select id="mesin-input" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" onchange="formData.mesin = this.value;">
                   <option value="">PILIH MESIN</option>
                   ${masterData.mesin.filter(m => {
                     const record = appData.masters.find(r => r.mesin === m && r.departemen === formData.departemen);
@@ -677,13 +666,13 @@
               </div>
 
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="produk">📦 NAMA PRODUK</label>
-                <input type="text" id="produk" value="${formData.nama_produk}" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.primary_color || defaultConfig.primary_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" oninput="formData.nama_produk = this.value.toUpperCase(); this.value = this.value.toUpperCase();">
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="produk">📦 NAMA PRODUK</label>
+                <input type="text" id="produk" value="${formData.nama_produk}" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" oninput="formData.nama_produk = this.value.toUpperCase(); this.value = this.value.toUpperCase();">
               </div>
 
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="kategori">🏷️ KATEGORI PROBLEM *</label>
-                <select id="kategori" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.primary_color || defaultConfig.primary_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" required onchange="formData.kategori_problem = this.value;">
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="kategori">🏷️ KATEGORI PROBLEM *</label>
+                <select id="kategori" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" required onchange="formData.kategori_problem = this.value;">
                   <option value="">PILIH KATEGORI</option>
                   <option value="QUALITY" ${formData.kategori_problem === 'QUALITY' ? 'selected' : ''}>✨ QUALITY</option>
                   <option value="PRODUCTIVITY" ${formData.kategori_problem === 'PRODUCTIVITY' ? 'selected' : ''}>⚡ PRODUCTIVITY</option>
@@ -692,37 +681,37 @@
               </div>
 
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="judul">📝 JUDUL PROBLEM *</label>
-                <input type="text" id="judul" value="${formData.judul_problem}" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.primary_color || defaultConfig.primary_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" placeholder="CONTOH: KAPLET PATAH" required oninput="formData.judul_problem = this.value.toUpperCase(); this.value = this.value.toUpperCase();">
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="judul">📝 JUDUL PROBLEM *</label>
+                <input type="text" id="judul" value="${formData.judul_problem}" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" placeholder="CONTOH: KAPLET PATAH" required oninput="formData.judul_problem = this.value.toUpperCase(); this.value = this.value.toUpperCase();">
               </div>
             </div>
 
             <div>
-              <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="investigasi">🔍 INVESTIGASI PROBLEM</label>
-              <textarea id="investigasi" rows="4" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.primary_color || defaultConfig.primary_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" placeholder="DESKRIPSIKAN PROBLEM YANG TERJADI SECARA DETAIL" oninput="formData.investigasi = this.value.toUpperCase(); this.value = this.value.toUpperCase();">${formData.investigasi}</textarea>
+              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="investigasi">🔍 INVESTIGASI PROBLEM</label>
+              <textarea id="investigasi" rows="4" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" placeholder="DESKRIPSIKAN PROBLEM YANG TERJADI SECARA DETAIL" oninput="formData.investigasi = this.value.toUpperCase(); this.value = this.value.toUpperCase();">${formData.investigasi}</textarea>
             </div>
 
             <div>
-              <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="foto-kejadian">📸 UPLOAD FOTO KEJADIAN</label>
-              <input type="file" id="foto-kejadian" accept="image/*" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.primary_color || defaultConfig.primary_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" onchange="handleImageUpload(this.files[0]).then(data => formData.foto_kejadian = data);">
+              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="foto-kejadian">📸 UPLOAD FOTO KEJADIAN</label>
+              <input type="file" id="foto-kejadian" accept="image/*" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" onchange="handleImageUpload(this.files[0]).then(data => formData.foto_kejadian = data);">
             </div>
 
             <div>
-              <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="action-text">✅ ACTION YANG DILAKUKAN</label>
-              <textarea id="action-text" rows="4" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.primary_color || defaultConfig.primary_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" placeholder="DESKRIPSIKAN ACTION YANG DILAKUKAN SECARA DETAIL" oninput="formData.action = this.value.toUpperCase(); this.value = this.value.toUpperCase();">${formData.action}</textarea>
+              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="action-text">✅ ACTION YANG DILAKUKAN</label>
+              <textarea id="action-text" rows="4" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" placeholder="DESKRIPSIKAN ACTION YANG DILAKUKAN SECARA DETAIL" oninput="formData.action = this.value.toUpperCase(); this.value = this.value.toUpperCase();">${formData.action}</textarea>
             </div>
 
             <div>
-              <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="foto-perbaikan">📸 UPLOAD FOTO PERBAIKAN</label>
-              <input type="file" id="foto-perbaikan" accept="image/*" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.primary_color || defaultConfig.primary_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" onchange="handleImageUpload(this.files[0]).then(data => formData.foto_perbaikan = data);">
+              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="foto-perbaikan">📸 UPLOAD FOTO PERBAIKAN</label>
+              <input type="file" id="foto-perbaikan" accept="image/*" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" onchange="handleImageUpload(this.files[0]).then(data => formData.foto_perbaikan = data);">
             </div>
 
             <div>
-              <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="evaluasi">⭐ EVALUASI HASIL</label>
-              <textarea id="evaluasi" rows="4" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.primary_color || defaultConfig.primary_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" placeholder="DESKRIPSIKAN HASIL ACTION YANG DILAKUKAN" oninput="formData.evaluasi = this.value.toUpperCase(); this.value = this.value.toUpperCase();">${formData.evaluasi}</textarea>
+              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="evaluasi">⭐ EVALUASI HASIL</label>
+              <textarea id="evaluasi" rows="4" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" placeholder="DESKRIPSIKAN HASIL ACTION YANG DILAKUKAN" oninput="formData.evaluasi = this.value.toUpperCase(); this.value = this.value.toUpperCase();">${formData.evaluasi}</textarea>
             </div>
 
-            <button type="submit" id="submit-btn" style="background: linear-gradient(135deg, ${config.primary_color || defaultConfig.primary_color} 0%, ${config.accent_color || defaultConfig.accent_color} 100%); font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.125}px;" class="w-full py-4 text-white rounded-xl font-black hover:opacity-90 transition shadow-2xl">
+            <button type="submit" id="submit-btn" class="w-full py-4 text-white rounded-xl font-black hover:opacity-90 transition shadow-2xl text-lg" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
               💾 SIMPAN PROBLEM
             </button>
           </form>
@@ -732,27 +721,26 @@
 
     function renderManage() {
       if (!supabase) {
-        return `<div style="background: ${window.elementSdk.config.card_bg_color || defaultConfig.card_bg_color};" class="rounded-2xl p-8 shadow-2xl text-center neon-border">
-          <p style="font-family: ${window.elementSdk.config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${window.elementSdk.config.font_size || defaultConfig.font_size}px; color: ${window.elementSdk.config.text_color || defaultConfig.text_color};">⚠️ Supabase belum dikonfigurasi</p>
+        return `<div class="rounded-2xl p-8 shadow-2xl text-center neon-border bg-white">
+          <p class="text-gray-600">⚠️ Supabase belum dikonfigurasi</p>
         </div>`;
       }
 
       getMasterDataFromRecords();
-      const config = window.elementSdk.config;
       const masterRecords = appData.masters || [];
 
       if (!isAuthenticated) {
         return `
-          <div style="background: ${config.card_bg_color || defaultConfig.card_bg_color};" class="rounded-2xl p-8 shadow-2xl max-w-md mx-auto neon-border">
-            <h2 style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.75}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold mb-8 text-center flex items-center justify-center gap-3">
+          <div class="rounded-2xl p-8 shadow-2xl max-w-md mx-auto neon-border bg-white">
+            <h2 class="text-3xl font-bold mb-8 text-center flex items-center justify-center gap-3 text-gray-800">
               🔐 LOGIN ADMIN
             </h2>
-            <form id="login-form" class="space-y-6" onsubmit="event.preventDefault(); const pwd = document.getElementById('password').value; if (pwd.toUpperCase() === '${(config.login_password || defaultConfig.login_password).toUpperCase()}') { isAuthenticated = true; resetInactivityTimer(); renderApp(); } else { showToast('❌ Password salah!', 'error'); }">
+            <form id="login-form" class="space-y-6" onsubmit="event.preventDefault(); const pwd = document.getElementById('password').value; if (pwd.toUpperCase() === '${ADMIN_PASSWORD.toUpperCase()}') { isAuthenticated = true; resetInactivityTimer(); renderApp(); } else { showToast('❌ Password salah!', 'error'); }">
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="password">🔑 PASSWORD</label>
-                <input type="password" id="password" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.primary_color || defaultConfig.primary_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" required>
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="password">🔑 PASSWORD</label>
+                <input type="password" id="password" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" required>
               </div>
-              <button type="submit" style="background: linear-gradient(135deg, ${config.primary_color || defaultConfig.primary_color} 0%, ${config.accent_color || defaultConfig.accent_color} 100%); font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.125}px;" class="w-full py-4 text-white rounded-xl font-black hover:opacity-90 transition shadow-2xl">
+              <button type="submit" class="w-full py-4 text-white rounded-xl font-black hover:opacity-90 transition shadow-2xl text-lg" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
                 🚀 LOGIN
               </button>
             </form>
@@ -761,24 +749,24 @@
       }
 
       return `
-        <div style="background: ${config.card_bg_color || defaultConfig.card_bg_color};" class="rounded-2xl p-8 shadow-2xl neon-border" onmousemove="resetInactivityTimer()" onclick="resetInactivityTimer()">
+        <div class="rounded-2xl p-8 shadow-2xl neon-border bg-white" onmousemove="resetInactivityTimer()" onclick="resetInactivityTimer()">
           <div class="flex justify-between items-center mb-8">
-            <h2 style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.75}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold flex items-center gap-3">
+            <h2 class="text-3xl font-bold flex items-center gap-3 text-gray-800">
               ⚙️ MANAGE MASTER DATA
             </h2>
-            <button onclick="isAuthenticated = false; renderApp();" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="px-6 py-3 text-white rounded-xl hover:opacity-90 font-bold shadow-lg">
+            <button onclick="isAuthenticated = false; renderApp();" class="px-6 py-3 text-white rounded-xl hover:opacity-90 font-bold shadow-lg text-sm" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
               🚪 LOGOUT
             </button>
           </div>
 
-          <form id="master-form" class="mb-8 p-6 border-2 rounded-2xl" style="border-color: ${config.accent_color || defaultConfig.accent_color}; background: rgba(245, 158, 11, 0.05);" onsubmit="event.preventDefault(); const form = this; submitMasterData({ departemen: form.dept.value, area: form.area.value, proses: form.proses.value, mesin: form.mesin.value }); form.reset();">
-            <h3 style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.25}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold mb-6 flex items-center gap-3">
+          <form id="master-form" class="mb-8 p-6 border-2 rounded-2xl" style="border-color: #2563eb; background: rgba(59, 130, 246, 0.05);" onsubmit="event.preventDefault(); const form = this; submitMasterData({ departemen: form.dept.value, area: form.area.value, proses: form.proses.value, mesin: form.mesin.value }); form.reset();">
+            <h3 class="text-xl font-bold mb-6 flex items-center gap-3 text-gray-800">
               ➕ TAMBAH MASTER DATA
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="dept">📂 DEPARTEMEN *</label>
-                <select id="dept" name="dept" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.accent_color || defaultConfig.accent_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" required>
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="dept">📂 DEPARTEMEN *</label>
+                <select id="dept" name="dept" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #2563eb;" required>
                   <option value="">PILIH DEPARTEMEN</option>
                   <option value="LINE 01 A">LINE 01 A</option>
                   <option value="LINE 01 B">LINE 01 B</option>
@@ -792,38 +780,38 @@
                 </select>
               </div>
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="area">📍 AREA *</label>
-                <select id="area" name="area" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.accent_color || defaultConfig.accent_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" required>
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="area">📍 AREA *</label>
+                <select id="area" name="area" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #2563eb;" required>
                   <option value="">PILIH AREA</option>
                   <option value="INJEKSI">💉 INJEKSI</option>
                   <option value="NON INJEKSI">🔧 NON INJEKSI</option>
                 </select>
               </div>
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="proses">🔧 PROSES *</label>
-                <input type="text" id="proses" name="proses" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.accent_color || defaultConfig.accent_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" required>
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="proses">🔧 PROSES *</label>
+                <input type="text" id="proses" name="proses" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #2563eb;" required>
               </div>
               <div>
-                <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.text_color || defaultConfig.text_color};" class="block mb-2 font-bold flex items-center gap-2" for="mesin">⚙️ NAMA MESIN *</label>
-                <input type="text" id="mesin" name="mesin" style="background: rgba(255,255,255,0.05); color: ${config.text_color || defaultConfig.text_color}; border-color: ${config.accent_color || defaultConfig.accent_color}; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px;" class="w-full px-4 py-3 border-2 rounded-xl" required>
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="mesin">⚙️ NAMA MESIN *</label>
+                <input type="text" id="mesin" name="mesin" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #2563eb;" required>
               </div>
             </div>
-            <button type="submit" id="master-submit-btn" style="background: linear-gradient(135deg, ${config.accent_color || defaultConfig.accent_color} 0%, #fb923c 100%); font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.125}px;" class="w-full mt-6 py-4 text-white rounded-xl font-black hover:opacity-90 transition shadow-2xl">
+            <button type="submit" id="master-submit-btn" class="w-full mt-6 py-4 text-white rounded-xl font-black hover:opacity-90 transition shadow-2xl text-lg" style="background: linear-gradient(135deg, #2563eb 0%, #fb923c 100%);">
               💾 SIMPAN
             </button>
           </form>
 
           <div class="space-y-4">
-            <h3 style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.25}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold flex items-center gap-3">
+            <h3 class="text-xl font-bold flex items-center gap-3 text-gray-800">
               📊 DATA MASTER
             </h3>
-            ${masterRecords.length === 0 ? `<p style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px; color: ${config.text_color || defaultConfig.text_color};" class="text-center py-8 opacity-70">Belum ada master data</p>` : ''}
+            ${masterRecords.length === 0 ? `<p class="text-center py-8 opacity-70 text-gray-600">Belum ada master data</p>` : ''}
             ${masterRecords.map(r => `
               <div id="master-${r.id}" class="master-card p-6 rounded-xl shadow-sm">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.75}px; color: ${config.text_color || defaultConfig.text_color};" class="block text-xs mb-2 font-bold opacity-70">📂 DEPARTEMEN</label>
-                    <select disabled id="dept-${r.id}" style="background: #f3f4f6; color: ${config.text_color || defaultConfig.text_color}; border-color: #d1d5db; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="w-full px-3 py-2 rounded-lg border">
+                    <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700">📂 DEPARTEMEN</label>
+                    <select disabled id="dept-${r.id}" class="w-full px-3 py-2 rounded-lg border text-sm text-gray-800" style="background: #f3f4f6; border-color: #d1d5db;">
                       <option value="LINE 01 A" ${r.departemen === 'LINE 01 A' ? 'selected' : ''}>LINE 01 A</option>
                       <option value="LINE 01 B" ${r.departemen === 'LINE 01 B' ? 'selected' : ''}>LINE 01 B</option>
                       <option value="LINE 02" ${r.departemen === 'LINE 02' ? 'selected' : ''}>LINE 02</option>
@@ -836,26 +824,26 @@
                     </select>
                   </div>
                   <div>
-                    <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.75}px; color: ${config.text_color || defaultConfig.text_color};" class="block text-xs mb-2 font-bold opacity-70">📍 AREA</label>
-                    <select disabled id="area-${r.id}" style="background: #f3f4f6; color: ${config.text_color || defaultConfig.text_color}; border-color: #d1d5db; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="w-full px-3 py-2 rounded-lg border">
+                    <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700">📍 AREA</label>
+                    <select disabled id="area-${r.id}" class="w-full px-3 py-2 rounded-lg border text-sm text-gray-800" style="background: #f3f4f6; border-color: #d1d5db;">
                       <option value="INJEKSI" ${r.area === 'INJEKSI' ? 'selected' : ''}>💉 INJEKSI</option>
                       <option value="NON INJEKSI" ${r.area === 'NON INJEKSI' ? 'selected' : ''}>🔧 NON INJEKSI</option>
                     </select>
                   </div>
                   <div>
-                    <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.75}px; color: ${config.text_color || defaultConfig.text_color};" class="block text-xs mb-2 font-bold opacity-70">🔧 PROSES</label>
-                    <input disabled id="proses-${r.id}" type="text" value="${r.proses}" style="background: #f3f4f6; color: ${config.text_color || defaultConfig.text_color}; border-color: #d1d5db; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="w-full px-3 py-2 rounded-lg border">
+                    <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700">🔧 PROSES</label>
+                    <input disabled id="proses-${r.id}" type="text" value="${r.proses}" class="w-full px-3 py-2 rounded-lg border text-sm text-gray-800" style="background: #f3f4f6; border-color: #d1d5db;">
                   </div>
                   <div>
-                    <label style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.75}px; color: ${config.text_color || defaultConfig.text_color};" class="block text-xs mb-2 font-bold opacity-70">⚙️ NAMA MESIN</label>
-                    <input disabled id="mesin-${r.id}" type="text" value="${r.mesin}" style="background: #f3f4f6; color: ${config.text_color || defaultConfig.text_color}; border-color: #d1d5db; font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" class="w-full px-3 py-2 rounded-lg border">
+                    <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700">⚙️ NAMA MESIN</label>
+                    <input disabled id="mesin-${r.id}" type="text" value="${r.mesin}" class="w-full px-3 py-2 rounded-lg border text-sm text-gray-800" style="background: #f3f4f6; border-color: #d1d5db;">
                   </div>
                 </div>
                 <div class="flex gap-3">
-                  <button class="edit-btn flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition" style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" onclick="toggleEditMaster(${r.id});">
+                  <button class="edit-btn flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition text-sm" onclick="toggleEditMaster(${r.id});">
                     ✏️ EDIT
                   </button>
-                  <button class="delete-confirm-btn flex-1 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition" style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px;" onclick="deleteMasterRecord(appData.masters.find(rec => rec.id === ${r.id}));">
+                  <button class="delete-confirm-btn flex-1 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition text-sm" onclick="deleteMasterRecord(appData.masters.find(rec => rec.id === ${r.id}));">
                     🗑️ HAPUS
                   </button>
                 </div>
@@ -868,29 +856,28 @@
 
     function renderHistory() {
       if (!supabase) {
-        return `<div style="background: ${window.elementSdk.config.card_bg_color || defaultConfig.card_bg_color};" class="rounded-2xl p-8 shadow-2xl text-center neon-border">
-          <p style="font-family: ${window.elementSdk.config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${window.elementSdk.config.font_size || defaultConfig.font_size}px; color: ${window.elementSdk.config.text_color || defaultConfig.text_color};">⚠️ Supabase belum dikonfigurasi</p>
+        return `<div class="rounded-2xl p-8 shadow-2xl text-center neon-border bg-white">
+          <p class="text-gray-600">⚠️ Supabase belum dikonfigurasi</p>
         </div>`;
       }
 
-      const config = window.elementSdk.config;
       const historyRecords = appData.history || [];
 
       return `
-        <div style="background: ${config.card_bg_color || defaultConfig.card_bg_color};" class="rounded-2xl p-8 shadow-2xl neon-border">
-          <h2 style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 1.75}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold mb-8 flex items-center gap-3">
+        <div class="rounded-2xl p-8 shadow-2xl neon-border bg-white">
+          <h2 class="text-3xl font-bold mb-8 flex items-center gap-3 text-gray-800">
             📜 HISTORY AKTIVITAS
           </h2>
           <div class="space-y-4">
-            ${historyRecords.length === 0 ? `<p style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px; color: ${config.text_color || defaultConfig.text_color};" class="text-center py-12 opacity-70">Belum ada history aktivitas</p>` : ''}
+            ${historyRecords.length === 0 ? `<p class="text-center py-12 opacity-70 text-gray-600">Belum ada history aktivitas</p>` : ''}
             ${historyRecords.map(h => `
               <div class="problem-card p-6 rounded-2xl shadow-lg">
                 <div class="flex justify-between items-start">
-                  <p style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${config.font_size || defaultConfig.font_size}px; color: ${config.text_color || defaultConfig.text_color};" class="font-bold">${h.activity_description}</p>
-                  <span style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.75}px; color: ${config.text_color || defaultConfig.text_color};" class="text-xs opacity-60">🕐 ${new Date(h.created_at).toLocaleString('id-ID')}</span>
+                  <p class="font-bold text-base text-gray-800">${h.activity_description}</p>
+                  <span class="text-xs opacity-60 text-gray-600">🕐 ${new Date(h.created_at).toLocaleString('id-ID')}</span>
                 </div>
                 ${h.departemen || h.mesin ? `
-                  <div class="mt-3 flex gap-4 text-sm" style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif; font-size: ${(config.font_size || defaultConfig.font_size) * 0.875}px; color: ${config.accent_color || defaultConfig.accent_color};">
+                  <div class="mt-3 flex gap-4 text-sm text-blue-600">
                     ${h.departemen ? `<span class="font-semibold">📂 ${h.departemen}</span>` : ''}
                     ${h.mesin ? `<span class="font-semibold">⚙️ ${h.mesin}</span>` : ''}
                   </div>
@@ -904,26 +891,25 @@
 
     function renderApp() {
       const app = document.getElementById('app');
-      const config = window.elementSdk.config;
 
       app.innerHTML = `
-        <div class="gradient-bg min-h-full w-full p-6 overflow-auto" style="font-family: ${config.font_family || defaultConfig.font_family}, sans-serif;">
+        <div class="gradient-bg min-h-screen w-full p-6">
           <div class="max-w-7xl mx-auto">
-            <h1 style="font-size: ${(config.font_size || defaultConfig.font_size) * 2.5}px; color: ${config.text_color || defaultConfig.text_color}; text-shadow: 0 0 30px rgba(99, 102, 241, 0.5);" class="font-black mb-8 text-center">
-              ${config.app_title || defaultConfig.app_title}
+            <h1 class="text-5xl font-black mb-8 text-center text-gray-800" style="text-shadow: 0 0 30px rgba(59, 130, 246, 0.3);">
+              ⚡ SOLVING NAVIGATOR
             </h1>
 
             <div class="flex flex-wrap gap-3 mb-8 justify-center">
-              <button onclick="currentTab = 'dashboard'; renderApp();" class="tab-button px-8 py-4 rounded-2xl font-black transition shadow-2xl" style="background: ${currentTab === 'dashboard' ? `linear-gradient(135deg, ${config.primary_color || defaultConfig.primary_color} 0%, ${config.accent_color || defaultConfig.accent_color} 100%)` : 'rgba(255,255,255,0.1)'}; color: ${currentTab === 'dashboard' ? '#ffffff' : config.text_color || defaultConfig.text_color}; font-size: ${(config.font_size || defaultConfig.font_size) * 1.125}px;">
+              <button onclick="currentTab = 'dashboard'; renderApp();" class="tab-button px-8 py-4 rounded-2xl font-black transition shadow-2xl text-lg" style="background: ${currentTab === 'dashboard' ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'rgba(255,255,255,0.5)'}; color: ${currentTab === 'dashboard' ? '#ffffff' : '#1f2937'};">
                 📊 DASHBOARD
               </button>
-              <button onclick="currentTab = 'input'; renderApp();" class="tab-button px-8 py-4 rounded-2xl font-black transition shadow-2xl" style="background: ${currentTab === 'input' ? `linear-gradient(135deg, ${config.primary_color || defaultConfig.primary_color} 0%, ${config.accent_color || defaultConfig.accent_color} 100%)` : 'rgba(255,255,255,0.1)'}; color: ${currentTab === 'input' ? '#ffffff' : config.text_color || defaultConfig.text_color}; font-size: ${(config.font_size || defaultConfig.font_size) * 1.125}px;">
+              <button onclick="currentTab = 'input'; renderApp();" class="tab-button px-8 py-4 rounded-2xl font-black transition shadow-2xl text-lg" style="background: ${currentTab === 'input' ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'rgba(255,255,255,0.5)'}; color: ${currentTab === 'input' ? '#ffffff' : '#1f2937'};">
                 ✏️ INPUT
               </button>
-              <button onclick="currentTab = 'manage'; renderApp();" class="tab-button px-8 py-4 rounded-2xl font-black transition shadow-2xl" style="background: ${currentTab === 'manage' ? `linear-gradient(135deg, ${config.primary_color || defaultConfig.primary_color} 0%, ${config.accent_color || defaultConfig.accent_color} 100%)` : 'rgba(255,255,255,0.1)'}; color: ${currentTab === 'manage' ? '#ffffff' : config.text_color || defaultConfig.text_color}; font-size: ${(config.font_size || defaultConfig.font_size) * 1.125}px;">
+              <button onclick="currentTab = 'manage'; renderApp();" class="tab-button px-8 py-4 rounded-2xl font-black transition shadow-2xl text-lg" style="background: ${currentTab === 'manage' ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'rgba(255,255,255,0.5)'}; color: ${currentTab === 'manage' ? '#ffffff' : '#1f2937'};">
                 ⚙️ MANAGE DATA
               </button>
-              <button onclick="currentTab = 'history'; renderApp();" class="tab-button px-8 py-4 rounded-2xl font-black transition shadow-2xl" style="background: ${currentTab === 'history' ? `linear-gradient(135deg, ${config.primary_color || defaultConfig.primary_color} 0%, ${config.accent_color || defaultConfig.accent_color} 100%)` : 'rgba(255,255,255,0.1)'}; color: ${currentTab === 'history' ? '#ffffff' : config.text_color || defaultConfig.text_color}; font-size: ${(config.font_size || defaultConfig.font_size) * 1.125}px;">
+              <button onclick="currentTab = 'history'; renderApp();" class="tab-button px-8 py-4 rounded-2xl font-black transition shadow-2xl text-lg" style="background: ${currentTab === 'history' ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'rgba(255,255,255,0.5)'}; color: ${currentTab === 'history' ? '#ffffff' : '#1f2937'};">
                 📜 HISTORY
               </button>
             </div>
@@ -936,75 +922,9 @@
       `;
     }
 
-    async function onConfigChange(config) {
-      initSupabase();
-      renderApp();
-    }
-
-    window.elementSdk.init({
-      defaultConfig,
-      onConfigChange,
-      mapToCapabilities: (config) => ({
-        recolorables: [
-          {
-            get: () => config.primary_color || defaultConfig.primary_color,
-            set: (value) => {
-              config.primary_color = value;
-              window.elementSdk.setConfig({ primary_color: value });
-            }
-          },
-          {
-            get: () => config.secondary_color || defaultConfig.secondary_color,
-            set: (value) => {
-              config.secondary_color = value;
-              window.elementSdk.setConfig({ secondary_color: value });
-            }
-          },
-          {
-            get: () => config.text_color || defaultConfig.text_color,
-            set: (value) => {
-              config.text_color = value;
-              window.elementSdk.setConfig({ text_color: value });
-            }
-          },
-          {
-            get: () => config.card_bg_color || defaultConfig.card_bg_color,
-            set: (value) => {
-              config.card_bg_color = value;
-              window.elementSdk.setConfig({ card_bg_color: value });
-            }
-          },
-          {
-            get: () => config.accent_color || defaultConfig.accent_color,
-            set: (value) => {
-              config.accent_color = value;
-              window.elementSdk.setConfig({ accent_color: value });
-            }
-          }
-        ],
-        borderables: [],
-        fontEditable: {
-          get: () => config.font_family || defaultConfig.font_family,
-          set: (value) => {
-            config.font_family = value;
-            window.elementSdk.setConfig({ font_family: value });
-          }
-        },
-        fontSizeable: {
-          get: () => config.font_size || defaultConfig.font_size,
-          set: (value) => {
-            config.font_size = value;
-            window.elementSdk.setConfig({ font_size: value });
-          }
-        }
-      }),
-      mapToEditPanelValues: (config) => new Map([
-        ["app_title", config.app_title || defaultConfig.app_title],
-        ["login_password", config.login_password || defaultConfig.login_password]
-      ])
-    });
-
+    // Initialize app
     initSupabase();
+    renderApp();
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9ae3374794a7283c',t:'MTc2NTc3MzEzNC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9ae3410382e0ccfd',t:'MTc2NTc3MzUzMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
