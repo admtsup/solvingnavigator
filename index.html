@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>⚡ SOLVING NAVIGATOR</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Gunakan Supabase CDN versi stabil -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
     body {
@@ -13,6 +14,7 @@
       padding: 0;
       min-height: 100vh;
       background: #f9fafb;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
     }
     .toast {
       position: fixed;
@@ -24,6 +26,7 @@
       z-index: 1000;
       animation: slideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
       font-weight: 600;
+      max-width: 400px;
     }
     @keyframes slideIn {
       from { transform: translateX(400px) scale(0.8); opacity: 0; }
@@ -33,6 +36,8 @@
       transition: all 0.2s ease;
       position: relative;
       overflow: hidden;
+      border: none;
+      cursor: pointer;
     }
     .tab-button:hover {
       transform: translateY(-1px);
@@ -50,6 +55,7 @@
     input[type="text"], input[type="password"], select, textarea {
       text-transform: uppercase;
       transition: all 0.2s;
+      font-family: inherit;
     }
     input[type="text"]:focus, input[type="password"]:focus, select:focus, textarea:focus {
       outline: none;
@@ -84,6 +90,7 @@
     .problem-card {
       background: #ffffff;
       border: 1px solid #e5e7eb;
+      border-radius: 12px;
     }
     .problem-card:hover {
       border-color: #3b82f6;
@@ -92,13 +99,67 @@
     .master-card {
       background: #ffffff;
       border: 1px solid #e5e7eb;
+      border-radius: 12px;
     }
     .master-card:hover {
       border-color: #3b82f6;
       box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
     }
+    .form-control {
+      background: white;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 16px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .form-control:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 24px;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 24px;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 24px;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
   </style>
-  <style>@view-transition { navigation: auto; }</style>
 </head>
 <body>
   <div id="app"></div>
@@ -109,7 +170,8 @@
 
     const ADMIN_PASSWORD = "DANKOS2025";
 
-    var supabase = null;
+    // Global variables
+    let supabase = null;
     let appData = {
       problems: [],
       masters: [],
@@ -144,70 +206,156 @@
       proses: ''
     };
 
+    // Initialize Supabase dengan error handling yang lebih baik
     function initSupabase() {
-      if (SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL !== "YOUR_SUPABASE_URL_HERE" && SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY_HERE") {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        loadData();
+      try {
+        // Cek apakah window.supabase tersedia
+        if (typeof window.supabase === 'undefined') {
+          console.error('Supabase library not loaded');
+          showToast('❌ Library Supabase gagal dimuat. Cek koneksi internet.', 'error');
+          return false;
+        }
+
+        // Cek credentials
+        if (!SUPABASE_URL || !SUPABASE_ANON_KEY || 
+            SUPABASE_URL.includes('YOUR_SUPABASE_URL_HERE') || 
+            SUPABASE_ANON_KEY.includes('YOUR_SUPABASE_ANON_KEY_HERE')) {
+          console.error('Supabase credentials not set');
+          showToast('⚠️ Konfigurasi Supabase belum lengkap', 'error');
+          return false;
+        }
+
+        // Inisialisasi Supabase client
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: {
+            persistSession: false
+          }
+        });
+
+        console.log('Supabase initialized successfully');
         return true;
+        
+      } catch (error) {
+        console.error('Error initializing Supabase:', error);
+        showToast('❌ Gagal menginisialisasi Supabase: ' + error.message, 'error');
+        return false;
       }
-      return false;
     }
 
+    // Load data dari Supabase
     async function loadData() {
-      if (!supabase) return;
-      
+      if (!supabase) {
+        console.warn('Supabase not initialized');
+        return;
+      }
+
       try {
-        const { data: problems, error: problemError } = await supabase
-          .from('problems')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        const { data: masters, error: masterError } = await supabase
-          .from('master_data')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        const { data: history, error: historyError } = await supabase
-          .from('history')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (!problemError && !masterError && !historyError) {
-          appData = {
-            problems: problems || [],
-            masters: masters || [],
-            history: history || []
-          };
-          getMasterDataFromRecords();
-          renderApp();
+        // Tampilkan loading
+        const contentDiv = document.getElementById('content');
+        if (contentDiv) {
+          contentDiv.innerHTML = `
+            <div class="text-center py-16">
+              <div class="loading mx-auto mb-4" style="width: 40px; height: 40px;"></div>
+              <p class="text-gray-600">Memuat data...</p>
+            </div>
+          `;
         }
+
+        // Load data paralel
+        const [problemsRes, mastersRes, historyRes] = await Promise.allSettled([
+          supabase.from('problems').select('*').order('created_at', { ascending: false }),
+          supabase.from('master_data').select('*').order('created_at', { ascending: false }),
+          supabase.from('history').select('*').order('created_at', { ascending: false })
+        ]);
+
+        // Handle results
+        const problems = problemsRes.status === 'fulfilled' && !problemsRes.value.error 
+          ? problemsRes.value.data 
+          : [];
+        
+        const masters = mastersRes.status === 'fulfilled' && !mastersRes.value.error 
+          ? mastersRes.value.data 
+          : [];
+        
+        const history = historyRes.status === 'fulfilled' && !historyRes.value.error 
+          ? historyRes.value.data 
+          : [];
+
+        // Update app data
+        appData = { problems, masters, history };
+        
+        // Extract master data
+        getMasterDataFromRecords();
+        
+        // Render aplikasi
+        renderApp();
+
       } catch (error) {
         console.error('Error loading data:', error);
+        showToast('❌ Gagal memuat data. Cek koneksi internet.', 'error');
+        renderApp(); // Tetap render dengan data kosong
       }
     }
 
+    // Toast notification
     function showToast(message, type = 'success') {
+      // Hapus toast sebelumnya
+      const existingToasts = document.querySelectorAll('.toast');
+      existingToasts.forEach(toast => {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      });
+
       const toast = document.createElement('div');
-      toast.className = `toast ${type === 'success' ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-red-500 to-rose-600'} text-white`;
+      toast.className = `toast ${type === 'success' 
+        ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+        : 'bg-gradient-to-r from-red-500 to-rose-600'} text-white`;
       toast.textContent = message;
       document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
+      
+      // Auto remove setelah 3 detik
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      }, 3000);
     }
 
+    // Helper functions
     function toUpperCase(str) {
-      return str ? str.toUpperCase() : '';
+      return typeof str === 'string' ? str.toUpperCase() : '';
     }
 
     function getMasterDataFromRecords() {
-      if (!appData.masters) return;
-      masterData.departemen = [...new Set(appData.masters.map(r => r.departemen).filter(Boolean))];
-      masterData.area = [...new Set(appData.masters.map(r => r.area).filter(Boolean))];
-      masterData.proses = [...new Set(appData.masters.map(r => r.proses).filter(Boolean))];
-      masterData.mesin = [...new Set(appData.masters.map(r => r.mesin).filter(Boolean))];
+      if (!appData.masters || !Array.isArray(appData.masters)) {
+        masterData = { departemen: [], area: [], proses: [], mesin: [] };
+        return;
+      }
+
+      masterData.departemen = [...new Set(appData.masters
+        .map(r => r.departemen)
+        .filter(Boolean)
+        .sort())];
+      
+      masterData.area = [...new Set(appData.masters
+        .map(r => r.area)
+        .filter(Boolean)
+        .sort())];
+      
+      masterData.proses = [...new Set(appData.masters
+        .map(r => r.proses)
+        .filter(Boolean)
+        .sort())];
+      
+      masterData.mesin = [...new Set(appData.masters
+        .map(r => r.mesin)
+        .filter(Boolean)
+        .sort())];
     }
 
     function getProblems() {
-      return appData.problems || [];
+      return Array.isArray(appData.problems) ? appData.problems : [];
     }
 
     function getFilteredProblems() {
@@ -228,6 +376,7 @@
       return { total, quality, productivity, safety };
     }
 
+    // Timer untuk logout otomatis
     function resetInactivityTimer() {
       if (inactivityTimer) clearTimeout(inactivityTimer);
       if (currentTab === 'manage' && isAuthenticated) {
@@ -235,71 +384,110 @@
           isAuthenticated = false;
           showToast('Sesi berakhir karena tidak ada aktivitas', 'error');
           renderApp();
-        }, 20000);
+        }, 300000); // 5 menit
       }
     }
 
+    // Image upload handler
     async function handleImageUpload(file) {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
+        if (!file) {
+          resolve('');
+          return;
+        }
+        
+        // Validasi ukuran file (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          reject(new Error('Ukuran file maksimal 5MB'));
+          return;
+        }
+        
+        // Validasi tipe file
+        if (!file.type.startsWith('image/')) {
+          reject(new Error('File harus berupa gambar'));
+          return;
+        }
+        
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (error) => reject(error);
         reader.readAsDataURL(file);
       });
     }
 
+    // Submit problem baru
     async function submitProblem() {
       if (!supabase) {
         showToast('Supabase belum dikonfigurasi!', 'error');
         return;
       }
 
-      if (!formData.inisial_personil || !formData.departemen || !formData.kategori_problem || !formData.judul_problem) {
-        showToast('Mohon lengkapi field yang wajib diisi', 'error');
+      // Validasi required fields
+      const requiredFields = [
+        { key: 'inisial_personil', label: 'Inisial Personil' },
+        { key: 'departemen', label: 'Departemen' },
+        { key: 'kategori_problem', label: 'Kategori Problem' },
+        { key: 'judul_problem', label: 'Judul Problem' }
+      ];
+
+      const missingFields = requiredFields
+        .filter(field => !formData[field.key])
+        .map(field => field.label);
+
+      if (missingFields.length > 0) {
+        showToast(`Mohon lengkapi: ${missingFields.join(', ')}`, 'error');
         return;
       }
 
       const btn = document.getElementById('submit-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="loading"></span> MENYIMPAN...';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading"></span> MENYIMPAN...';
+      }
 
-      const masterRecord = appData.masters.find(r => 
-        r.departemen === formData.departemen && 
-        r.mesin === formData.mesin
-      );
+      try {
+        // Cari master record
+        const masterRecord = appData.masters.find(r => 
+          r.departemen === formData.departemen && 
+          r.mesin === formData.mesin
+        );
 
-      const newRecord = {
-        inisial_personil: toUpperCase(formData.inisial_personil),
-        departemen: toUpperCase(formData.departemen),
-        mesin: toUpperCase(formData.mesin),
-        area: masterRecord ? toUpperCase(masterRecord.area) : '',
-        proses: masterRecord ? toUpperCase(masterRecord.proses) : '',
-        nama_produk: toUpperCase(formData.nama_produk),
-        kategori_problem: toUpperCase(formData.kategori_problem),
-        judul_problem: toUpperCase(formData.judul_problem),
-        investigasi: toUpperCase(formData.investigasi),
-        foto_kejadian: formData.foto_kejadian,
-        action: toUpperCase(formData.action),
-        foto_perbaikan: formData.foto_perbaikan,
-        evaluasi: toUpperCase(formData.evaluasi),
-        created_at: new Date().toISOString()
-      };
+        // Prepare record
+        const newRecord = {
+          inisial_personil: toUpperCase(formData.inisial_personil),
+          departemen: toUpperCase(formData.departemen),
+          mesin: toUpperCase(formData.mesin),
+          area: masterRecord ? toUpperCase(masterRecord.area) : '',
+          proses: masterRecord ? toUpperCase(masterRecord.proses) : '',
+          nama_produk: toUpperCase(formData.nama_produk),
+          kategori_problem: toUpperCase(formData.kategori_problem),
+          judul_problem: toUpperCase(formData.judul_problem),
+          investigasi: toUpperCase(formData.investigasi),
+          foto_kejadian: formData.foto_kejadian || '',
+          action: toUpperCase(formData.action),
+          foto_perbaikan: formData.foto_perbaikan || '',
+          evaluasi: toUpperCase(formData.evaluasi),
+          created_at: new Date().toISOString()
+        };
 
-      const { data, error } = await supabase
-        .from('problems')
-        .insert([newRecord])
-        .select();
-      
-      if (!error) {
-        await supabase
-          .from('history')
-          .insert([{
-            activity_description: `Problem baru ditambahkan: ${newRecord.judul_problem}`,
-            departemen: newRecord.departemen,
-            mesin: newRecord.mesin,
-            kategori_problem: newRecord.kategori_problem,
-            created_at: new Date().toISOString()
-          }]);
-        
+        // Simpan ke Supabase
+        const { data, error } = await supabase
+          .from('problems')
+          .insert([newRecord])
+          .select();
+
+        if (error) throw error;
+
+        // Tambahkan ke history
+        await supabase.from('history').insert([{
+          activity_description: `Problem baru ditambahkan: ${newRecord.judul_problem}`,
+          departemen: newRecord.departemen,
+          mesin: newRecord.mesin,
+          kategori_problem: newRecord.kategori_problem,
+          created_at: new Date().toISOString()
+        }]);
+
+        // Reset form
         formData = {
           inisial_personil: '',
           departemen: '',
@@ -313,68 +501,95 @@
           foto_perbaikan: '',
           evaluasi: ''
         };
+
         showToast('✅ Problem berhasil disimpan!');
         currentTab = 'dashboard';
         await loadData();
-      } else {
+
+      } catch (error) {
+        console.error('Error saving problem:', error);
         showToast('❌ Gagal menyimpan problem: ' + error.message, 'error');
-        btn.disabled = false;
-        btn.textContent = 'SIMPAN PROBLEM';
+        
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'SIMPAN PROBLEM';
+        }
       }
     }
 
+    // Submit master data
     async function submitMasterData(data) {
       if (!supabase) {
         showToast('Supabase belum dikonfigurasi!', 'error');
         return;
       }
 
+      // Validasi
+      if (!data.departemen || !data.area || !data.proses || !data.mesin) {
+        showToast('Semua field master data wajib diisi', 'error');
+        return;
+      }
+
       const btn = document.getElementById('master-submit-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="loading"></span> MENYIMPAN...';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading"></span> MENYIMPAN...';
+      }
 
-      const newRecord = {
-        departemen: toUpperCase(data.departemen),
-        area: toUpperCase(data.area),
-        proses: toUpperCase(data.proses),
-        mesin: toUpperCase(data.mesin),
-        created_at: new Date().toISOString()
-      };
+      try {
+        const newRecord = {
+          departemen: toUpperCase(data.departemen),
+          area: toUpperCase(data.area),
+          proses: toUpperCase(data.proses),
+          mesin: toUpperCase(data.mesin),
+          created_at: new Date().toISOString()
+        };
 
-      const { error } = await supabase
-        .from('master_data')
-        .insert([newRecord]);
-      
-      if (!error) {
-        await supabase
-          .from('history')
-          .insert([{
-            activity_description: `Master data ditambahkan: ${newRecord.departemen} - ${newRecord.mesin}`,
-            departemen: newRecord.departemen,
-            mesin: newRecord.mesin,
-            created_at: new Date().toISOString()
-          }]);
-        
+        const { error } = await supabase
+          .from('master_data')
+          .insert([newRecord]);
+
+        if (error) throw error;
+
+        // Tambahkan ke history
+        await supabase.from('history').insert([{
+          activity_description: `Master data ditambahkan: ${newRecord.departemen} - ${newRecord.mesin}`,
+          departemen: newRecord.departemen,
+          mesin: newRecord.mesin,
+          created_at: new Date().toISOString()
+        }]);
+
         showToast('✅ Master data berhasil disimpan!');
         resetInactivityTimer();
         await loadData();
-      } else {
+
+      } catch (error) {
+        console.error('Error saving master data:', error);
         showToast('❌ Gagal menyimpan master data: ' + error.message, 'error');
-        btn.disabled = false;
-        btn.textContent = 'SIMPAN';
+        
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'SIMPAN';
+        }
       }
     }
 
+    // Delete master record
     async function deleteMasterRecord(record) {
-      if (!supabase) return;
+      if (!supabase || !record) return;
 
       const container = document.getElementById(`master-${record.id}`);
+      if (!container) return;
+
       const deleteBtn = container.querySelector('.delete-confirm-btn');
+      if (!deleteBtn) return;
       
+      // Konfirmasi dua tahap
       if (deleteBtn.textContent === '🗑️ HAPUS') {
         deleteBtn.textContent = '⚠️ KONFIRMASI HAPUS?';
         deleteBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
         deleteBtn.classList.add('bg-orange-600', 'hover:bg-orange-700');
+        
         setTimeout(() => {
           if (deleteBtn && deleteBtn.textContent === '⚠️ KONFIRMASI HAPUS?') {
             deleteBtn.textContent = '🗑️ HAPUS';
@@ -388,39 +603,50 @@
       deleteBtn.disabled = true;
       deleteBtn.innerHTML = '<span class="loading"></span> MENGHAPUS...';
 
-      const { error } = await supabase
-        .from('master_data')
-        .delete()
-        .eq('id', record.id);
-      
-      if (!error) {
-        await supabase
-          .from('history')
-          .insert([{
-            activity_description: `Master data dihapus: ${record.departemen} - ${record.mesin}`,
-            departemen: record.departemen,
-            mesin: record.mesin,
-            created_at: new Date().toISOString()
-          }]);
+      try {
+        const { error } = await supabase
+          .from('master_data')
+          .delete()
+          .eq('id', record.id);
+        
+        if (error) throw error;
+        
+        // Tambahkan ke history
+        await supabase.from('history').insert([{
+          activity_description: `Master data dihapus: ${record.departemen} - ${record.mesin}`,
+          departemen: record.departemen,
+          mesin: record.mesin,
+          created_at: new Date().toISOString()
+        }]);
         
         showToast('✅ Master data berhasil dihapus!');
         resetInactivityTimer();
         await loadData();
-      } else {
+        
+      } catch (error) {
+        console.error('Error deleting master data:', error);
         showToast('❌ Gagal menghapus master data: ' + error.message, 'error');
+        
         deleteBtn.disabled = false;
         deleteBtn.textContent = '🗑️ HAPUS';
       }
     }
 
+    // Toggle edit master
     function toggleEditMaster(recordId) {
+      const container = document.getElementById(`master-${recordId}`);
+      if (!container) return;
+
       const deptField = document.getElementById(`dept-${recordId}`);
       const areaField = document.getElementById(`area-${recordId}`);
       const prosesField = document.getElementById(`proses-${recordId}`);
       const mesinField = document.getElementById(`mesin-${recordId}`);
-      const editBtn = document.getElementById(`master-${recordId}`).querySelector('.edit-btn');
+      const editBtn = container.querySelector('.edit-btn');
+      
+      if (!deptField || !areaField || !prosesField || !mesinField || !editBtn) return;
       
       if (deptField.disabled) {
+        // Enable editing
         deptField.disabled = false;
         areaField.disabled = false;
         prosesField.disabled = false;
@@ -435,56 +661,69 @@
         editBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
         editBtn.classList.add('bg-green-600', 'hover:bg-green-700');
       } else {
+        // Save changes
         const record = appData.masters.find(r => r.id === recordId);
-        updateMasterRecord(record, {
-          departemen: deptField.value,
-          area: areaField.value,
-          proses: prosesField.value,
-          mesin: mesinField.value
-        });
+        if (record) {
+          updateMasterRecord(record, {
+            departemen: deptField.value,
+            area: areaField.value,
+            proses: prosesField.value,
+            mesin: mesinField.value
+          });
+        }
       }
       resetInactivityTimer();
     }
 
+    // Update master record
     async function updateMasterRecord(record, updates) {
-      if (!supabase) return;
+      if (!supabase || !record) return;
 
-      const btn = document.getElementById(`master-${record.id}`).querySelector('.edit-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="loading"></span> MENYIMPAN...';
+      const btn = document.getElementById(`master-${record.id}`)?.querySelector('.edit-btn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading"></span> MENYIMPAN...';
+      }
 
-      const updateData = {
-        departemen: toUpperCase(updates.departemen),
-        area: toUpperCase(updates.area),
-        proses: toUpperCase(updates.proses),
-        mesin: toUpperCase(updates.mesin)
-      };
-      
-      const { error } = await supabase
-        .from('master_data')
-        .update(updateData)
-        .eq('id', record.id);
-      
-      if (!error) {
-        await supabase
-          .from('history')
-          .insert([{
-            activity_description: `Master data diupdate: ${updateData.departemen} - ${updateData.mesin}`,
-            departemen: updateData.departemen,
-            mesin: updateData.mesin,
-            created_at: new Date().toISOString()
-          }]);
+      try {
+        const updateData = {
+          departemen: toUpperCase(updates.departemen),
+          area: toUpperCase(updates.area),
+          proses: toUpperCase(updates.proses),
+          mesin: toUpperCase(updates.mesin)
+        };
+        
+        const { error } = await supabase
+          .from('master_data')
+          .update(updateData)
+          .eq('id', record.id);
+        
+        if (error) throw error;
+        
+        // Tambahkan ke history
+        await supabase.from('history').insert([{
+          activity_description: `Master data diupdate: ${updateData.departemen} - ${updateData.mesin}`,
+          departemen: updateData.departemen,
+          mesin: updateData.mesin,
+          created_at: new Date().toISOString()
+        }]);
         
         showToast('✅ Master data berhasil diupdate!');
         resetInactivityTimer();
         await loadData();
-      } else {
+        
+      } catch (error) {
+        console.error('Error updating master data:', error);
         showToast('❌ Gagal mengupdate master data: ' + error.message, 'error');
-        btn.disabled = false;
-        btn.textContent = '💾 SIMPAN';
+        
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '💾 SIMPAN';
+        }
       }
     }
 
+    // Render dashboard
     function renderDashboard() {
       getMasterDataFromRecords();
       const scores = calculateScores();
@@ -502,42 +741,52 @@
 
       return `
         <div class="space-y-6">
+          <!-- Filter Section -->
           <div class="rounded-2xl p-8 text-white shadow-2xl neon-border" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
             <h2 class="text-3xl font-bold mb-6 flex items-center gap-3">
               🔍 FILTER DATA
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label class="block mb-2 font-bold text-sm" for="filter-departemen">📂 DEPARTEMEN</label>
-                <select id="filter-departemen" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 text-base" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white;" onchange="filters.departemen = this.value; renderApp();">
-                  <option value="" style="color: #1e293b;">SEMUA</option>
-                  ${masterData.departemen.map(d => `<option value="${d}" ${filters.departemen === d ? 'selected' : ''} style="color: #1e293b;">${d}</option>`).join('')}
+                <label class="block mb-2 font-bold text-sm">📂 DEPARTEMEN</label>
+                <select id="filter-departemen" class="form-control" onchange="filters.departemen = this.value; renderApp();">
+                  <option value="">SEMUA</option>
+                  ${masterData.departemen.map(d => `
+                    <option value="${d}" ${filters.departemen === d ? 'selected' : ''}>${d}</option>
+                  `).join('')}
                 </select>
               </div>
               <div>
-                <label class="block mb-2 font-bold text-sm" for="filter-mesin">⚙️ MESIN</label>
-                <select id="filter-mesin" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 text-base" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white;" onchange="filters.mesin = this.value; renderApp();">
-                  <option value="" style="color: #1e293b;">SEMUA</option>
-                  ${masterData.mesin.map(m => `<option value="${m}" ${filters.mesin === m ? 'selected' : ''} style="color: #1e293b;">${m}</option>`).join('')}
+                <label class="block mb-2 font-bold text-sm">⚙️ MESIN</label>
+                <select id="filter-mesin" class="form-control" onchange="filters.mesin = this.value; renderApp();">
+                  <option value="">SEMUA</option>
+                  ${masterData.mesin.map(m => `
+                    <option value="${m}" ${filters.mesin === m ? 'selected' : ''}>${m}</option>
+                  `).join('')}
                 </select>
               </div>
               <div>
-                <label class="block mb-2 font-bold text-sm" for="filter-area">📍 AREA</label>
-                <select id="filter-area" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 text-base" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white;" onchange="filters.area = this.value; renderApp();">
-                  <option value="" style="color: #1e293b;">SEMUA</option>
-                  ${masterData.area.map(a => `<option value="${a}" ${filters.area === a ? 'selected' : ''} style="color: #1e293b;">${a}</option>`).join('')}
+                <label class="block mb-2 font-bold text-sm">📍 AREA</label>
+                <select id="filter-area" class="form-control" onchange="filters.area = this.value; renderApp();">
+                  <option value="">SEMUA</option>
+                  ${masterData.area.map(a => `
+                    <option value="${a}" ${filters.area === a ? 'selected' : ''}>${a}</option>
+                  `).join('')}
                 </select>
               </div>
               <div>
-                <label class="block mb-2 font-bold text-sm" for="filter-proses">🔧 PROSES</label>
-                <select id="filter-proses" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 text-base" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); color: white;" onchange="filters.proses = this.value; renderApp();">
-                  <option value="" style="color: #1e293b;">SEMUA</option>
-                  ${masterData.proses.map(p => `<option value="${p}" ${filters.proses === p ? 'selected' : ''} style="color: #1e293b;">${p}</option>`).join('')}
+                <label class="block mb-2 font-bold text-sm">🔧 PROSES</label>
+                <select id="filter-proses" class="form-control" onchange="filters.proses = this.value; renderApp();">
+                  <option value="">SEMUA</option>
+                  ${masterData.proses.map(p => `
+                    <option value="${p}" ${filters.proses === p ? 'selected' : ''}>${p}</option>
+                  `).join('')}
                 </select>
               </div>
             </div>
           </div>
 
+          <!-- Score Cards -->
           <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div class="score-card rounded-2xl p-8 text-white shadow-2xl">
               <div class="text-sm opacity-90 mb-2 font-bold">📊 TOTAL PROBLEM</div>
@@ -557,61 +806,98 @@
             </div>
           </div>
 
+          <!-- Problem List -->
           <div class="rounded-2xl p-8 shadow-2xl neon-border bg-white">
             <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-gray-800">
-              📋 DETAIL PROBLEM
+              📋 DETAIL PROBLEM (${problems.length})
             </h3>
             <div class="space-y-4">
-              ${problems.length === 0 ? `<p class="text-center py-12 opacity-70 text-gray-600">Belum ada problem yang tercatat</p>` : ''}
+              ${problems.length === 0 ? `
+                <div class="text-center py-12 opacity-70 text-gray-600">
+                  <p class="text-lg mb-2">Belum ada problem yang tercatat</p>
+                  <p class="text-sm">Pilih filter yang berbeda atau tambahkan problem baru</p>
+                </div>
+              ` : ''}
+              
               ${problems.map(p => `
                 <div class="problem-card card p-6 rounded-2xl shadow-lg">
                   <div class="flex justify-between items-start mb-4">
                     <div>
-                      <h4 class="text-xl font-bold mb-2 text-gray-800">${p.judul_problem}</h4>
-                      <p class="text-sm opacity-60 text-gray-600">🕐 ${new Date(p.created_at).toLocaleString('id-ID')}</p>
+                      <h4 class="text-xl font-bold mb-2 text-gray-800">${p.judul_problem || 'Tidak ada judul'}</h4>
+                      <p class="text-sm opacity-60 text-gray-600">
+                        🕐 ${p.created_at ? new Date(p.created_at).toLocaleString('id-ID') : 'Tanggal tidak tersedia'}
+                      </p>
                     </div>
-                    <span class="px-4 py-2 rounded-full text-white text-xs font-black shadow-lg" style="background: ${p.kategori_problem === 'QUALITY' ? 'linear-gradient(135deg, #f59e0b 0%, #fb923c 100%)' : p.kategori_problem === 'PRODUCTIVITY' ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'}">${p.kategori_problem}</span>
+                    <span class="px-4 py-2 rounded-full text-white text-xs font-black shadow-lg" style="
+                      background: ${p.kategori_problem === 'QUALITY' 
+                        ? 'linear-gradient(135deg, #f59e0b 0%, #fb923c 100%)' 
+                        : p.kategori_problem === 'PRODUCTIVITY' 
+                        ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' 
+                        : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                      }">
+                      ${p.kategori_problem || 'UNKNOWN'}
+                    </span>
                   </div>
-                  <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+                  
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
                     <div class="flex items-center gap-2">
                       <span class="font-bold text-gray-700">👤 Personil:</span>
-                      <span class="font-semibold text-blue-600">${p.inisial_personil}</span>
+                      <span class="font-semibold text-blue-600">${p.inisial_personil || '-'}</span>
                     </div>
                     <div class="flex items-center gap-2">
                       <span class="font-bold text-gray-700">📂 Departemen:</span>
-                      <span class="font-semibold text-blue-600">${p.departemen}</span>
+                      <span class="font-semibold text-blue-600">${p.departemen || '-'}</span>
                     </div>
                     <div class="flex items-center gap-2">
                       <span class="font-bold text-gray-700">⚙️ Mesin:</span>
-                      <span class="font-semibold text-blue-600">${p.mesin}</span>
+                      <span class="font-semibold text-blue-600">${p.mesin || '-'}</span>
                     </div>
                     <div class="flex items-center gap-2">
                       <span class="font-bold text-gray-700">📦 Produk:</span>
-                      <span class="font-semibold text-blue-600">${p.nama_produk}</span>
+                      <span class="font-semibold text-blue-600">${p.nama_produk || '-'}</span>
                     </div>
                   </div>
+                  
                   ${p.investigasi ? `
                     <div class="mt-4 pt-4 border-t border-gray-200">
                       <span class="font-bold flex items-center gap-2 mb-2 text-gray-700">🔍 Investigasi:</span>
                       <p class="opacity-80 text-gray-600">${p.investigasi}</p>
                     </div>
                   ` : ''}
+                  
                   ${p.action ? `
                     <div class="mt-4 pt-4 border-t border-gray-200">
                       <span class="font-bold flex items-center gap-2 mb-2 text-gray-700">✅ Action:</span>
                       <p class="opacity-80 text-gray-600">${p.action}</p>
                     </div>
                   ` : ''}
+                  
                   ${p.evaluasi ? `
                     <div class="mt-4 pt-4 border-t border-gray-200">
                       <span class="font-bold flex items-center gap-2 mb-2 text-gray-700">⭐ Evaluasi:</span>
                       <p class="opacity-80 text-gray-600">${p.evaluasi}</p>
                     </div>
                   ` : ''}
-                  ${p.foto_kejadian || p.foto_perbaikan ? `
-                    <div class="mt-4 pt-4 border-t border-gray-200 flex gap-3">
-                      ${p.foto_kejadian ? `<img src="${p.foto_kejadian}" alt="Foto Kejadian" class="w-32 h-32 object-cover rounded-xl shadow-lg border-2 border-red-500" onerror="this.style.display='none'; this.alt='Gagal memuat gambar';">` : ''}
-                      ${p.foto_perbaikan ? `<img src="${p.foto_perbaikan}" alt="Foto Perbaikan" class="w-32 h-32 object-cover rounded-xl shadow-lg border-2 border-green-500" onerror="this.style.display='none'; this.alt='Gagal memuat gambar';">` : ''}
+                  
+                  ${(p.foto_kejadian || p.foto_perbaikan) ? `
+                    <div class="mt-4 pt-4 border-t border-gray-200 flex gap-3 flex-wrap">
+                      ${p.foto_kejadian ? `
+                        <div>
+                          <p class="text-sm font-bold mb-2 text-red-600">📸 Foto Kejadian:</p>
+                          <img src="${p.foto_kejadian}" alt="Foto Kejadian" 
+                               class="w-32 h-32 object-cover rounded-xl shadow-lg border-2 border-red-500"
+                               onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9IiNmNWY1ZjUiPjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiByeD0iMTIiLz48dGV4dCB4PSI2NCIgeT0iNjQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIwLjNlbSIgZmlsbD0iIzk5OSIgZm9udC1zaXplPSIxMiI+Rm90byBFcnJvcjwvdGV4dD48L3N2Zz4=';">
+                        </div>
+                      ` : ''}
+                      
+                      ${p.foto_perbaikan ? `
+                        <div>
+                          <p class="text-sm font-bold mb-2 text-green-600">📸 Foto Perbaikan:</p>
+                          <img src="${p.foto_perbaikan}" alt="Foto Perbaikan" 
+                               class="w-32 h-32 object-cover rounded-xl shadow-lg border-2 border-green-500"
+                               onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9IiNmNWY1ZjUiPjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiByeD0iMTIiLz48dGV4dCB4PSI2NCIgeT0iNjQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIwLjNlbSIgZmlsbD0iIzk5OSIgZm9udC1zaXplPSIxMiI+Rm90byBFcnJvcjwvdGV4dD48L3N2Zz4=';">
+                        </div>
+                      ` : ''}
                     </div>
                   ` : ''}
                 </div>
@@ -622,11 +908,15 @@
       `;
     }
 
+    // Render input form
     function renderInput() {
       if (!supabase) {
-        return `<div class="rounded-2xl p-8 shadow-2xl text-center neon-border bg-white">
-          <p class="text-gray-600">⚠️ Supabase belum dikonfigurasi</p>
-        </div>`;
+        return `
+          <div class="rounded-2xl p-8 shadow-2xl text-center neon-border bg-white">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">⚠️ KONFIGURASI DIBUTUHKAN</h2>
+            <p class="text-gray-600">Supabase belum dikonfigurasi dengan benar.</p>
+          </div>
+        `;
       }
 
       getMasterDataFromRecords();
@@ -634,137 +924,251 @@
       return `
         <div class="rounded-2xl p-8 shadow-2xl max-w-4xl mx-auto neon-border bg-white">
           <h2 class="text-3xl font-bold mb-8 flex items-center gap-3 text-gray-800">
-            ✏️ INPUT PROBLEM
+            ✏️ INPUT PROBLEM BARU
           </h2>
           
-          <form id="problem-form" class="space-y-6" onsubmit="event.preventDefault(); submitProblem();">
+          <form id="problem-form" class="space-y-6">
+            <!-- Row 1 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="inisial">👤 INISIAL PERSONIL *</label>
-                <input type="text" id="inisial" value="${formData.inisial_personil}" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" required oninput="formData.inisial_personil = this.value.toUpperCase(); this.value = this.value.toUpperCase();">
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                  👤 INISIAL PERSONIL *
+                </label>
+                <input type="text" id="inisial" value="${formData.inisial_personil}" 
+                       class="form-control" 
+                       placeholder="Contoh: ABD"
+                       required 
+                       oninput="formData.inisial_personil = this.value.toUpperCase();">
               </div>
 
               <div>
-                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="departemen-input">📂 DEPARTEMEN *</label>
-                <select id="departemen-input" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" required onchange="formData.departemen = this.value; renderApp();">
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                  📂 DEPARTEMEN *
+                </label>
+                <select id="departemen-input" class="form-control" required 
+                        onchange="formData.departemen = this.value; renderApp();">
                   <option value="">PILIH DEPARTEMEN</option>
-                  ${masterData.departemen.map(d => `<option value="${d}" ${formData.departemen === d ? 'selected' : ''}>${d}</option>`).join('')}
+                  ${masterData.departemen.map(d => `
+                    <option value="${d}" ${formData.departemen === d ? 'selected' : ''}>
+                      ${d}
+                    </option>
+                  `).join('')}
                 </select>
               </div>
+            </div>
 
+            <!-- Row 2 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="mesin-input">⚙️ MESIN</label>
-                <select id="mesin-input" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" onchange="formData.mesin = this.value;">
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                  ⚙️ MESIN
+                </label>
+                <select id="mesin-input" class="form-control" 
+                        onchange="formData.mesin = this.value;">
                   <option value="">PILIH MESIN</option>
                   ${masterData.mesin.filter(m => {
                     const record = appData.masters.find(r => r.mesin === m && r.departemen === formData.departemen);
                     return record;
-                  }).map(m => `<option value="${m}" ${formData.mesin === m ? 'selected' : ''}>${m}</option>`).join('')}
+                  }).map(m => `
+                    <option value="${m}" ${formData.mesin === m ? 'selected' : ''}>
+                      ${m}
+                    </option>
+                  `).join('')}
                 </select>
               </div>
 
               <div>
-                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="produk">📦 NAMA PRODUK</label>
-                <input type="text" id="produk" value="${formData.nama_produk}" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" oninput="formData.nama_produk = this.value.toUpperCase(); this.value = this.value.toUpperCase();">
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                  📦 NAMA PRODUK
+                </label>
+                <input type="text" id="produk" value="${formData.nama_produk}" 
+                       class="form-control" 
+                       placeholder="Contoh: KAPLET PARACETAMOL 500MG"
+                       oninput="formData.nama_produk = this.value.toUpperCase();">
               </div>
+            </div>
 
+            <!-- Row 3 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="kategori">🏷️ KATEGORI PROBLEM *</label>
-                <select id="kategori" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" required onchange="formData.kategori_problem = this.value;">
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                  🏷️ KATEGORI PROBLEM *
+                </label>
+                <select id="kategori" class="form-control" required 
+                        onchange="formData.kategori_problem = this.value;">
                   <option value="">PILIH KATEGORI</option>
-                  <option value="QUALITY" ${formData.kategori_problem === 'QUALITY' ? 'selected' : ''}>✨ QUALITY</option>
-                  <option value="PRODUCTIVITY" ${formData.kategori_problem === 'PRODUCTIVITY' ? 'selected' : ''}>⚡ PRODUCTIVITY</option>
-                  <option value="SAFETY" ${formData.kategori_problem === 'SAFETY' ? 'selected' : ''}>🛡️ SAFETY</option>
+                  <option value="QUALITY" ${formData.kategori_problem === 'QUALITY' ? 'selected' : ''}>
+                    ✨ QUALITY
+                  </option>
+                  <option value="PRODUCTIVITY" ${formData.kategori_problem === 'PRODUCTIVITY' ? 'selected' : ''}>
+                    ⚡ PRODUCTIVITY
+                  </option>
+                  <option value="SAFETY" ${formData.kategori_problem === 'SAFETY' ? 'selected' : ''}>
+                    🛡️ SAFETY
+                  </option>
                 </select>
               </div>
 
               <div>
-                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="judul">📝 JUDUL PROBLEM *</label>
-                <input type="text" id="judul" value="${formData.judul_problem}" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" placeholder="CONTOH: KAPLET PATAH" required oninput="formData.judul_problem = this.value.toUpperCase(); this.value = this.value.toUpperCase();">
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                  📝 JUDUL PROBLEM *
+                </label>
+                <input type="text" id="judul" value="${formData.judul_problem}" 
+                       class="form-control" 
+                       placeholder="Contoh: KAPLET PATAH SAAT PRODUKSI"
+                       required 
+                       oninput="formData.judul_problem = this.value.toUpperCase();">
               </div>
             </div>
 
+            <!-- Investigasi -->
             <div>
-              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="investigasi">🔍 INVESTIGASI PROBLEM</label>
-              <textarea id="investigasi" rows="4" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" placeholder="DESKRIPSIKAN PROBLEM YANG TERJADI SECARA DETAIL" oninput="formData.investigasi = this.value.toUpperCase(); this.value = this.value.toUpperCase();">${formData.investigasi}</textarea>
+              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                🔍 INVESTIGASI PROBLEM
+              </label>
+              <textarea id="investigasi" rows="4" class="form-control" 
+                        placeholder="Deskripsikan problem yang terjadi secara detail..."
+                        oninput="formData.investigasi = this.value.toUpperCase();">
+                ${formData.investigasi}
+              </textarea>
             </div>
 
+            <!-- Foto Kejadian -->
             <div>
-              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="foto-kejadian">📸 UPLOAD FOTO KEJADIAN</label>
-              <input type="file" id="foto-kejadian" accept="image/*" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" onchange="handleImageUpload(this.files[0]).then(data => formData.foto_kejadian = data);">
+              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                📸 UPLOAD FOTO KEJADIAN (Opsional, maks 5MB)
+              </label>
+              <input type="file" id="foto-kejadian" accept="image/*" class="form-control"
+                     onchange="handleImageUpload(this.files[0])
+                               .then(data => { formData.foto_kejadian = data; showToast('✅ Foto berhasil diupload'); })
+                               .catch(error => { showToast('❌ ' + error.message, 'error'); });">
             </div>
 
+            <!-- Action -->
             <div>
-              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="action-text">✅ ACTION YANG DILAKUKAN</label>
-              <textarea id="action-text" rows="4" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" placeholder="DESKRIPSIKAN ACTION YANG DILAKUKAN SECARA DETAIL" oninput="formData.action = this.value.toUpperCase(); this.value = this.value.toUpperCase();">${formData.action}</textarea>
+              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                ✅ ACTION YANG DILAKUKAN
+              </label>
+              <textarea id="action-text" rows="4" class="form-control" 
+                        placeholder="Deskripsikan action yang dilakukan untuk mengatasi problem..."
+                        oninput="formData.action = this.value.toUpperCase();">
+                ${formData.action}
+              </textarea>
             </div>
 
+            <!-- Foto Perbaikan -->
             <div>
-              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="foto-perbaikan">📸 UPLOAD FOTO PERBAIKAN</label>
-              <input type="file" id="foto-perbaikan" accept="image/*" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" onchange="handleImageUpload(this.files[0]).then(data => formData.foto_perbaikan = data);">
+              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                📸 UPLOAD FOTO PERBAIKAN (Opsional, maks 5MB)
+              </label>
+              <input type="file" id="foto-perbaikan" accept="image/*" class="form-control"
+                     onchange="handleImageUpload(this.files[0])
+                               .then(data => { formData.foto_perbaikan = data; showToast('✅ Foto berhasil diupload'); })
+                               .catch(error => { showToast('❌ ' + error.message, 'error'); });">
             </div>
 
+            <!-- Evaluasi -->
             <div>
-              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="evaluasi">⭐ EVALUASI HASIL</label>
-              <textarea id="evaluasi" rows="4" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" placeholder="DESKRIPSIKAN HASIL ACTION YANG DILAKUKAN" oninput="formData.evaluasi = this.value.toUpperCase(); this.value = this.value.toUpperCase();">${formData.evaluasi}</textarea>
+              <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                ⭐ EVALUASI HASIL
+              </label>
+              <textarea id="evaluasi" rows="4" class="form-control" 
+                        placeholder="Deskripsikan hasil dari action yang dilakukan..."
+                        oninput="formData.evaluasi = this.value.toUpperCase();">
+                ${formData.evaluasi}
+              </textarea>
             </div>
 
-            <button type="submit" id="submit-btn" class="w-full py-4 text-white rounded-xl font-black hover:opacity-90 transition shadow-2xl text-lg" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+            <!-- Submit Button -->
+            <button type="button" onclick="submitProblem();" id="submit-btn" 
+                    class="w-full py-4 text-white rounded-xl font-black hover:opacity-90 transition shadow-2xl text-lg btn-primary">
               💾 SIMPAN PROBLEM
             </button>
+
+            <p class="text-sm text-gray-500 text-center mt-4">
+              * Field wajib diisi
+            </p>
           </form>
         </div>
       `;
     }
 
+    // Render manage page
     function renderManage() {
       if (!supabase) {
-        return `<div class="rounded-2xl p-8 shadow-2xl text-center neon-border bg-white">
-          <p class="text-gray-600">⚠️ Supabase belum dikonfigurasi</p>
-        </div>`;
+        return `
+          <div class="rounded-2xl p-8 shadow-2xl text-center neon-border bg-white">
+            <p class="text-gray-600">⚠️ Supabase belum dikonfigurasi</p>
+          </div>
+        `;
       }
 
       getMasterDataFromRecords();
       const masterRecords = appData.masters || [];
 
+      // Login form jika belum authenticated
       if (!isAuthenticated) {
         return `
           <div class="rounded-2xl p-8 shadow-2xl max-w-md mx-auto neon-border bg-white">
             <h2 class="text-3xl font-bold mb-8 text-center flex items-center justify-center gap-3 text-gray-800">
               🔐 LOGIN ADMIN
             </h2>
-            <form id="login-form" class="space-y-6" onsubmit="event.preventDefault(); const pwd = document.getElementById('password').value; if (pwd.toUpperCase() === '${ADMIN_PASSWORD.toUpperCase()}') { isAuthenticated = true; resetInactivityTimer(); renderApp(); } else { showToast('❌ Password salah!', 'error'); }">
+            <form id="login-form" class="space-y-6">
               <div>
-                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="password">🔑 PASSWORD</label>
-                <input type="password" id="password" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #3b82f6;" required>
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                  🔑 PASSWORD ADMIN
+                </label>
+                <input type="password" id="password" class="form-control" required>
               </div>
-              <button type="submit" class="w-full py-4 text-white rounded-xl font-black hover:opacity-90 transition shadow-2xl text-lg" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+              <button type="button" onclick="
+                const pwd = document.getElementById('password').value; 
+                if (pwd.toUpperCase() === '${ADMIN_PASSWORD.toUpperCase()}') { 
+                  isAuthenticated = true; 
+                  resetInactivityTimer(); 
+                  renderApp(); 
+                } else { 
+                  showToast('❌ Password salah!', 'error'); 
+                }
+              " class="w-full btn-primary">
                 🚀 LOGIN
               </button>
             </form>
+            <p class="text-sm text-gray-500 text-center mt-4">
+              Password default: DANKOS2025
+            </p>
           </div>
         `;
       }
 
+      // Jika sudah login, tampilkan manage interface
       return `
-        <div class="rounded-2xl p-8 shadow-2xl neon-border bg-white" onmousemove="resetInactivityTimer()" onclick="resetInactivityTimer()">
+        <div class="rounded-2xl p-8 shadow-2xl neon-border bg-white" 
+             onmousemove="resetInactivityTimer()" onclick="resetInactivityTimer()">
+          
+          <!-- Header dengan logout -->
           <div class="flex justify-between items-center mb-8">
             <h2 class="text-3xl font-bold flex items-center gap-3 text-gray-800">
               ⚙️ MANAGE MASTER DATA
             </h2>
-            <button onclick="isAuthenticated = false; renderApp();" class="px-6 py-3 text-white rounded-xl hover:opacity-90 font-bold shadow-lg text-sm" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+            <button onclick="isAuthenticated = false; renderApp(); showToast('✅ Logout berhasil');" 
+                    class="px-6 py-3 btn-danger">
               🚪 LOGOUT
             </button>
           </div>
 
-          <form id="master-form" class="mb-8 p-6 border-2 rounded-2xl" style="border-color: #2563eb; background: rgba(59, 130, 246, 0.05);" onsubmit="event.preventDefault(); const form = this; submitMasterData({ departemen: form.dept.value, area: form.area.value, proses: form.proses.value, mesin: form.mesin.value }); form.reset();">
+          <!-- Add Master Data Form -->
+          <form id="master-form" class="mb-8 p-6 border-2 rounded-2xl" 
+                style="border-color: #2563eb; background: rgba(59, 130, 246, 0.05);">
             <h3 class="text-xl font-bold mb-6 flex items-center gap-3 text-gray-800">
-              ➕ TAMBAH MASTER DATA
+              ➕ TAMBAH MASTER DATA BARU
             </h3>
+            
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="dept">📂 DEPARTEMEN *</label>
-                <select id="dept" name="dept" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #2563eb;" required>
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                  📂 DEPARTEMEN *
+                </label>
+                <select id="dept" name="dept" class="form-control" required>
                   <option value="">PILIH DEPARTEMEN</option>
                   <option value="LINE 01 A">LINE 01 A</option>
                   <option value="LINE 01 B">LINE 01 B</option>
@@ -777,39 +1181,71 @@
                   <option value="LINE 09">LINE 09</option>
                 </select>
               </div>
+              
               <div>
-                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="area">📍 AREA *</label>
-                <select id="area" name="area" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #2563eb;" required>
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                  📍 AREA *
+                </label>
+                <select id="area" name="area" class="form-control" required>
                   <option value="">PILIH AREA</option>
                   <option value="INJEKSI">💉 INJEKSI</option>
                   <option value="NON INJEKSI">🔧 NON INJEKSI</option>
                 </select>
               </div>
+              
               <div>
-                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="proses">🔧 PROSES *</label>
-                <input type="text" id="proses" name="proses" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #2563eb;" required>
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                  🔧 PROSES *
+                </label>
+                <input type="text" id="proses" name="proses" class="form-control" 
+                       placeholder="Contoh: COMPRESSION" required>
               </div>
+              
               <div>
-                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700" for="mesin">⚙️ NAMA MESIN *</label>
-                <input type="text" id="mesin" name="mesin" class="w-full px-4 py-3 border-2 rounded-xl text-base text-gray-800" style="background: rgba(255,255,255,0.05); border-color: #2563eb;" required>
+                <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700">
+                  ⚙️ NAMA MESIN *
+                </label>
+                <input type="text" id="mesin" name="mesin" class="form-control" 
+                       placeholder="Contoh: KIKUSUI 36-ST" required>
               </div>
             </div>
-            <button type="submit" id="master-submit-btn" class="w-full mt-6 py-4 text-white rounded-xl font-black hover:opacity-90 transition shadow-2xl text-lg" style="background: linear-gradient(135deg, #2563eb 0%, #fb923c 100%);">
-              💾 SIMPAN
+            
+            <button type="button" onclick="
+              const form = document.getElementById('master-form');
+              submitMasterData({ 
+                departemen: form.dept.value, 
+                area: form.area.value, 
+                proses: form.proses.value, 
+                mesin: form.mesin.value 
+              }); 
+              form.reset();
+            " id="master-submit-btn" class="w-full mt-6 btn-success">
+              💾 SIMPAN DATA MASTER
             </button>
           </form>
 
+          <!-- Existing Master Data -->
           <div class="space-y-4">
             <h3 class="text-xl font-bold flex items-center gap-3 text-gray-800">
-              📊 DATA MASTER
+              📊 DATA MASTER TERDAFTAR (${masterRecords.length})
             </h3>
-            ${masterRecords.length === 0 ? `<p class="text-center py-8 opacity-70 text-gray-600">Belum ada master data</p>` : ''}
+            
+            ${masterRecords.length === 0 ? `
+              <div class="text-center py-8 opacity-70 text-gray-600">
+                <p>Belum ada master data yang terdaftar</p>
+                <p class="text-sm mt-2">Tambahkan data master menggunakan form di atas</p>
+              </div>
+            ` : ''}
+            
             ${masterRecords.map(r => `
               <div id="master-${r.id}" class="master-card p-6 rounded-xl shadow-sm">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <!-- Departemen -->
                   <div>
-                    <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700">📂 DEPARTEMEN</label>
-                    <select disabled id="dept-${r.id}" class="w-full px-3 py-2 rounded-lg border text-sm text-gray-800" style="background: #f3f4f6; border-color: #d1d5db;">
+                    <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700">
+                      📂 DEPARTEMEN
+                    </label>
+                    <select disabled id="dept-${r.id}" class="form-control text-sm">
                       <option value="LINE 01 A" ${r.departemen === 'LINE 01 A' ? 'selected' : ''}>LINE 01 A</option>
                       <option value="LINE 01 B" ${r.departemen === 'LINE 01 B' ? 'selected' : ''}>LINE 01 B</option>
                       <option value="LINE 02" ${r.departemen === 'LINE 02' ? 'selected' : ''}>LINE 02</option>
@@ -821,27 +1257,45 @@
                       <option value="LINE 09" ${r.departemen === 'LINE 09' ? 'selected' : ''}>LINE 09</option>
                     </select>
                   </div>
+                  
+                  <!-- Area -->
                   <div>
-                    <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700">📍 AREA</label>
-                    <select disabled id="area-${r.id}" class="w-full px-3 py-2 rounded-lg border text-sm text-gray-800" style="background: #f3f4f6; border-color: #d1d5db;">
+                    <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700">
+                      📍 AREA
+                    </label>
+                    <select disabled id="area-${r.id}" class="form-control text-sm">
                       <option value="INJEKSI" ${r.area === 'INJEKSI' ? 'selected' : ''}>💉 INJEKSI</option>
                       <option value="NON INJEKSI" ${r.area === 'NON INJEKSI' ? 'selected' : ''}>🔧 NON INJEKSI</option>
                     </select>
                   </div>
+                  
+                  <!-- Proses -->
                   <div>
-                    <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700">🔧 PROSES</label>
-                    <input disabled id="proses-${r.id}" type="text" value="${r.proses}" class="w-full px-3 py-2 rounded-lg border text-sm text-gray-800" style="background: #f3f4f6; border-color: #d1d5db;">
+                    <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700">
+                      🔧 PROSES
+                    </label>
+                    <input disabled id="proses-${r.id}" type="text" value="${r.proses || ''}" 
+                           class="form-control text-sm">
                   </div>
+                  
+                  <!-- Mesin -->
                   <div>
-                    <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700">⚙️ NAMA MESIN</label>
-                    <input disabled id="mesin-${r.id}" type="text" value="${r.mesin}" class="w-full px-3 py-2 rounded-lg border text-sm text-gray-800" style="background: #f3f4f6; border-color: #d1d5db;">
+                    <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700">
+                      ⚙️ NAMA MESIN
+                    </label>
+                    <input disabled id="mesin-${r.id}" type="text" value="${r.mesin || ''}" 
+                           class="form-control text-sm">
                   </div>
                 </div>
+                
+                <!-- Action Buttons -->
                 <div class="flex gap-3">
-                  <button class="edit-btn flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition text-sm" onclick="toggleEditMaster(${r.id});">
+                  <button class="edit-btn flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition text-sm"
+                          onclick="toggleEditMaster(${r.id});">
                     ✏️ EDIT
                   </button>
-                  <button class="delete-confirm-btn flex-1 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition text-sm" onclick="deleteMasterRecord(appData.masters.find(rec => rec.id === ${r.id}));">
+                  <button class="delete-confirm-btn flex-1 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition text-sm"
+                          onclick="deleteMasterRecord(appData.masters.find(rec => rec.id === ${r.id}));">
                     🗑️ HAPUS
                   </button>
                 </div>
@@ -852,11 +1306,14 @@
       `;
     }
 
+    // Render history page
     function renderHistory() {
       if (!supabase) {
-        return `<div class="rounded-2xl p-8 shadow-2xl text-center neon-border bg-white">
-          <p class="text-gray-600">⚠️ Supabase belum dikonfigurasi</p>
-        </div>`;
+        return `
+          <div class="rounded-2xl p-8 shadow-2xl text-center neon-border bg-white">
+            <p class="text-gray-600">⚠️ Supabase belum dikonfigurasi</p>
+          </div>
+        `;
       }
 
       const historyRecords = appData.history || [];
@@ -864,20 +1321,41 @@
       return `
         <div class="rounded-2xl p-8 shadow-2xl neon-border bg-white">
           <h2 class="text-3xl font-bold mb-8 flex items-center gap-3 text-gray-800">
-            📜 HISTORY AKTIVITAS
+            📜 HISTORY AKTIVITAS (${historyRecords.length})
           </h2>
+          
           <div class="space-y-4">
-            ${historyRecords.length === 0 ? `<p class="text-center py-12 opacity-70 text-gray-600">Belum ada history aktivitas</p>` : ''}
+            ${historyRecords.length === 0 ? `
+              <div class="text-center py-12 opacity-70 text-gray-600">
+                <p>Belum ada history aktivitas</p>
+                <p class="text-sm mt-2">Aktivitas akan tercatat saat Anda menambah atau mengubah data</p>
+              </div>
+            ` : ''}
+            
             ${historyRecords.map(h => `
               <div class="problem-card p-6 rounded-2xl shadow-lg">
                 <div class="flex justify-between items-start">
-                  <p class="font-bold text-base text-gray-800">${h.activity_description}</p>
-                  <span class="text-xs opacity-60 text-gray-600">🕐 ${new Date(h.created_at).toLocaleString('id-ID')}</span>
+                  <p class="font-bold text-base text-gray-800">
+                    ${h.activity_description || 'Aktivitas tidak tersedia'}
+                  </p>
+                  <span class="text-xs opacity-60 text-gray-600">
+                    🕐 ${h.created_at ? new Date(h.created_at).toLocaleString('id-ID') : 'Tanggal tidak tersedia'}
+                  </span>
                 </div>
-                ${h.departemen || h.mesin ? `
+                
+                ${(h.departemen || h.mesin) ? `
                   <div class="mt-3 flex gap-4 text-sm text-blue-600">
-                    ${h.departemen ? `<span class="font-semibold">📂 ${h.departemen}</span>` : ''}
-                    ${h.mesin ? `<span class="font-semibold">⚙️ ${h.mesin}</span>` : ''}
+                    ${h.departemen ? `
+                      <span class="font-semibold flex items-center gap-1">
+                        📂 ${h.departemen}
+                      </span>
+                    ` : ''}
+                    
+                    ${h.mesin ? `
+                      <span class="font-semibold flex items-center gap-1">
+                        ⚙️ ${h.mesin}
+                      </span>
+                    ` : ''}
                   </div>
                 ` : ''}
               </div>
@@ -887,42 +1365,138 @@
       `;
     }
 
+    // Main render function
     function renderApp() {
       const app = document.getElementById('app');
+      if (!app) return;
 
-      app.innerHTML = `
-        <div class="gradient-bg min-h-screen w-full p-6">
-          <div class="max-w-7xl mx-auto">
-            <h1 class="text-5xl font-black mb-8 text-center text-gray-800" style="text-shadow: 0 0 30px rgba(59, 130, 246, 0.3);">
-              ⚡ SOLVING NAVIGATOR
-            </h1>
+      try {
+        let content = '';
+        switch (currentTab) {
+          case 'dashboard': content = renderDashboard(); break;
+          case 'input': content = renderInput(); break;
+          case 'manage': content = renderManage(); break;
+          case 'history': content = renderHistory(); break;
+          default: content = renderDashboard();
+        }
 
-            <div class="flex flex-wrap gap-3 mb-8 justify-center">
-              <button onclick="currentTab = 'dashboard'; renderApp();" class="tab-button px-8 py-4 rounded-2xl font-black transition shadow-2xl text-lg" style="background: ${currentTab === 'dashboard' ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'rgba(255,255,255,0.5)'}; color: ${currentTab === 'dashboard' ? '#ffffff' : '#1f2937'};">
-                📊 DASHBOARD
-              </button>
-              <button onclick="currentTab = 'input'; renderApp();" class="tab-button px-8 py-4 rounded-2xl font-black transition shadow-2xl text-lg" style="background: ${currentTab === 'input' ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'rgba(255,255,255,0.5)'}; color: ${currentTab === 'input' ? '#ffffff' : '#1f2937'};">
-                ✏️ INPUT
-              </button>
-              <button onclick="currentTab = 'manage'; renderApp();" class="tab-button px-8 py-4 rounded-2xl font-black transition shadow-2xl text-lg" style="background: ${currentTab === 'manage' ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'rgba(255,255,255,0.5)'}; color: ${currentTab === 'manage' ? '#ffffff' : '#1f2937'};">
-                ⚙️ MANAGE DATA
-              </button>
-              <button onclick="currentTab = 'history'; renderApp();" class="tab-button px-8 py-4 rounded-2xl font-black transition shadow-2xl text-lg" style="background: ${currentTab === 'history' ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'rgba(255,255,255,0.5)'}; color: ${currentTab === 'history' ? '#ffffff' : '#1f2937'};">
-                📜 HISTORY
-              </button>
-            </div>
+        app.innerHTML = `
+          <div class="gradient-bg min-h-screen w-full p-4 md:p-6">
+            <div class="max-w-7xl mx-auto">
+              <!-- Header -->
+              <h1 class="text-3xl md:text-5xl font-black mb-6 md:mb-8 text-center text-gray-800" 
+                  style="text-shadow: 0 0 30px rgba(59, 130, 246, 0.3);">
+                ⚡ SOLVING NAVIGATOR
+              </h1>
 
-            <div id="content">
-              ${currentTab === 'dashboard' ? renderDashboard() : currentTab === 'input' ? renderInput() : currentTab === 'manage' ? renderManage() : renderHistory()}
+              <!-- Navigation Tabs -->
+              <div class="flex flex-wrap gap-2 md:gap-3 mb-6 md:mb-8 justify-center">
+                <button onclick="currentTab = 'dashboard'; renderApp();" 
+                        class="tab-button px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold md:font-black transition shadow-xl md:shadow-2xl text-sm md:text-lg"
+                        style="background: ${currentTab === 'dashboard' 
+                          ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' 
+                          : 'rgba(255,255,255,0.5)'}; 
+                        color: ${currentTab === 'dashboard' ? '#ffffff' : '#1f2937'};">
+                  📊 DASHBOARD
+                </button>
+                
+                <button onclick="currentTab = 'input'; renderApp();" 
+                        class="tab-button px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold md:font-black transition shadow-xl md:shadow-2xl text-sm md:text-lg"
+                        style="background: ${currentTab === 'input' 
+                          ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' 
+                          : 'rgba(255,255,255,0.5)'}; 
+                        color: ${currentTab === 'input' ? '#ffffff' : '#1f2937'};">
+                  ✏️ INPUT PROBLEM
+                </button>
+                
+                <button onclick="currentTab = 'manage'; renderApp();" 
+                        class="tab-button px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold md:font-black transition shadow-xl md:shadow-2xl text-sm md:text-lg"
+                        style="background: ${currentTab === 'manage' 
+                          ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' 
+                          : 'rgba(255,255,255,0.5)'}; 
+                        color: ${currentTab === 'manage' ? '#ffffff' : '#1f2937'};">
+                  ⚙️ MANAGE DATA
+                </button>
+                
+                <button onclick="currentTab = 'history'; renderApp();" 
+                        class="tab-button px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold md:font-black transition shadow-xl md:shadow-2xl text-sm md:text-lg"
+                        style="background: ${currentTab === 'history' 
+                          ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' 
+                          : 'rgba(255,255,255,0.5)'}; 
+                        color: ${currentTab === 'history' ? '#ffffff' : '#1f2937'};">
+                  📜 HISTORY
+                </button>
+              </div>
+
+              <!-- Main Content -->
+              <div id="content">
+                ${content}
+              </div>
+
+              <!-- Footer -->
+              <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+                <p class="text-sm text-gray-500">
+                  ⚡ SOLVING NAVIGATOR v1.0 • Built with Supabase & Tailwind CSS
+                </p>
+                <p class="text-xs text-gray-400 mt-1">
+                  Data akan tersimpan secara otomatis ke database cloud
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      `;
+        `;
+
+      } catch (error) {
+        console.error('Error rendering app:', error);
+        app.innerHTML = `
+          <div class="min-h-screen flex items-center justify-center p-6">
+            <div class="rounded-2xl p-8 shadow-2xl text-center max-w-md bg-white">
+              <h2 class="text-2xl font-bold mb-4 text-red-600">⚠️ TERJADI KESALAHAN</h2>
+              <p class="text-gray-600 mb-4">Aplikasi mengalami masalah saat merender.</p>
+              <button onclick="location.reload();" class="btn-primary">
+                🔄 MUAT ULANG APLIKASI
+              </button>
+            </div>
+          </div>
+        `;
+      }
     }
 
-    // Initialize app
-    initSupabase();
-    renderApp();
+    // Initialize application
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded, initializing app...');
+      
+      // Coba inisialisasi Supabase
+      if (initSupabase()) {
+        // Load data jika Supabase berhasil diinisialisasi
+        loadData();
+      } else {
+        // Tetap render app meski Supabase gagal
+        renderApp();
+        showToast('⚠️ Aplikasi berjalan dalam mode offline', 'error');
+      }
+
+      // Setup event listeners untuk menangani user activity
+      document.addEventListener('click', resetInactivityTimer);
+      document.addEventListener('mousemove', resetInactivityTimer);
+      document.addEventListener('keypress', resetInactivityTimer);
+    });
+
+    // Handle sebelum window ditutup
+    window.addEventListener('beforeunload', function() {
+      if (currentTab === 'manage' && isAuthenticated) {
+        isAuthenticated = false;
+      }
+    });
+
+    // Global error handler
+    window.addEventListener('error', function(event) {
+      console.error('Global error:', event.error);
+      // Tidak tampilkan toast untuk warning Supabase tentang WebAssembly
+      if (!event.message.includes('WebAssembly') && !event.message.includes('MIME type')) {
+        showToast('⚠️ Terjadi kesalahan di aplikasi', 'error');
+      }
+    });
   </script>
 </body>
 </html>
