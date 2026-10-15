@@ -8,6 +8,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"></script>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Library Export Excel dan PDF -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -498,6 +502,164 @@
       return problems;
     }
 
+    // ==================== EXPORT DATA PROBLEM ====================
+    // Export mengikuti filter dashboard yang sedang aktif.
+    function getExportDateStamp() {
+      const d = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    function exportCell(value) {
+      if (value === null || value === undefined || value === '') return '-';
+      if (typeof value === 'string') return value.replace(/\s+/g, ' ').trim() || '-';
+      return String(value);
+    }
+
+    function exportProblemsExcel() {
+      try {
+        if (typeof XLSX === 'undefined') {
+          showToast('Library Excel belum berhasil dimuat. Periksa koneksi internet.', 'error');
+          return;
+        }
+
+        const problems = getFilteredProblems();
+        if (!problems.length) {
+          showToast('Tidak ada data untuk diekspor. Periksa filter dashboard.', 'error');
+          return;
+        }
+
+        const excelData = problems.map((p, index) => ({
+          'No': index + 1,
+          'Tanggal Input': p.created_at ? new Date(p.created_at).toLocaleString('id-ID') : '',
+          'Inisial Personil': exportCell(p.inisial_personil),
+          'Departemen': exportCell(p.departemen),
+          'Area': exportCell(p.area),
+          'Proses': exportCell(p.proses),
+          'Mesin': exportCell(p.mesin),
+          'Nama Produk': exportCell(p.nama_produk),
+          'Kategori Problem': exportCell(p.kategori_problem),
+          'Judul Problem': exportCell(p.judul_problem),
+          'Investigasi': exportCell(p.investigasi),
+          'Action': exportCell(p.action),
+          'Evaluasi': exportCell(p.evaluasi),
+          'Foto Kejadian': p.foto_kejadian ? 'Ada' : 'Tidak ada',
+          'Foto Perbaikan': p.foto_perbaikan ? 'Ada' : 'Tidak ada'
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        worksheet['!cols'] = [
+          { wch: 6 }, { wch: 22 }, { wch: 18 }, { wch: 22 }, { wch: 20 },
+          { wch: 20 }, { wch: 22 }, { wch: 30 }, { wch: 20 }, { wch: 40 },
+          { wch: 50 }, { wch: 50 }, { wch: 45 }, { wch: 17 }, { wch: 17 }
+        ];
+        worksheet['!autofilter'] = { ref: worksheet['!ref'] };
+        worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Problem');
+        XLSX.writeFile(workbook, `Solving_Navigator_${getExportDateStamp()}.xlsx`);
+        showToast(`Export Excel berhasil: ${problems.length} data.`);
+      } catch (error) {
+        console.error('Export Excel error:', error);
+        showToast('Gagal export Excel. Periksa Console browser.', 'error');
+      }
+    }
+
+    function exportProblemsPDF() {
+      try {
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+          showToast('Library PDF belum berhasil dimuat. Periksa koneksi internet.', 'error');
+          return;
+        }
+
+        const problems = getFilteredProblems();
+        if (!problems.length) {
+          showToast('Tidak ada data untuk diekspor. Periksa filter dashboard.', 'error');
+          return;
+        }
+
+        const jsPDF = window.jspdf.jsPDF;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const printedAt = new Date().toLocaleString('id-ID');
+        const filterParts = [
+          filters.departemen ? `Departemen: ${filters.departemen}` : '',
+          filters.mesin ? `Mesin: ${filters.mesin}` : '',
+          filters.area ? `Area: ${filters.area}` : '',
+          filters.proses ? `Proses: ${filters.proses}` : ''
+        ].filter(Boolean);
+        const filterText = filterParts.length ? filterParts.join(' | ') : 'Semua data';
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(17);
+        doc.text('SOLVING NAVIGATOR', 10, 12);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text('LAPORAN DETAIL PROBLEM', 10, 19);
+        doc.setFontSize(8);
+        doc.text(`Tanggal cetak: ${printedAt}`, 10, 25);
+        doc.text(`Total data: ${problems.length} problem`, 10, 30);
+        const safeFilterText = doc.splitTextToSize(`Filter: ${filterText}`, 275);
+        doc.text(safeFilterText, 10, 35);
+        const tableStartY = 35 + (safeFilterText.length * 4) + 2;
+
+        const tableData = problems.map((p, index) => [
+          index + 1,
+          p.created_at ? new Date(p.created_at).toLocaleDateString('id-ID') : '-',
+          exportCell(p.inisial_personil),
+          exportCell(p.departemen),
+          exportCell(p.area),
+          exportCell(p.proses),
+          exportCell(p.mesin),
+          exportCell(p.nama_produk),
+          exportCell(p.kategori_problem),
+          exportCell(p.judul_problem),
+          exportCell(p.investigasi),
+          exportCell(p.action),
+          exportCell(p.evaluasi),
+          p.foto_kejadian ? 'Ada' : '-',
+          p.foto_perbaikan ? 'Ada' : '-'
+        ]);
+
+        if (typeof doc.autoTable !== 'function') {
+          showToast('Plugin tabel PDF belum berhasil dimuat. Periksa koneksi internet.', 'error');
+          return;
+        }
+
+        doc.autoTable({
+          startY: tableStartY,
+          head: [[
+            'No', 'Tanggal', 'Personil', 'Departemen', 'Area', 'Proses', 'Mesin',
+            'Produk', 'Kategori', 'Judul Problem', 'Investigasi', 'Action',
+            'Evaluasi', 'Foto Kejadian', 'Foto Perbaikan'
+          ]],
+          body: tableData,
+          theme: 'grid',
+          margin: { top: 10, right: 8, bottom: 12, left: 8 },
+          styles: {
+            font: 'helvetica', fontSize: 6, cellPadding: 1.6,
+            overflow: 'linebreak', valign: 'top', cellWidth: 'wrap'
+          },
+          headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [239, 246, 255] },
+          didDrawPage: function (data) {
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            doc.setFontSize(7);
+            doc.text(`SOLVING NAVIGATOR | Halaman ${data.pageNumber}`, pageWidth - 8, pageHeight - 5, { align: 'right' });
+          }
+        });
+
+        doc.save(`Solving_Navigator_${getExportDateStamp()}.pdf`);
+        showToast(`Export PDF berhasil: ${problems.length} data.`);
+      } catch (error) {
+        console.error('Export PDF error:', error);
+        showToast('Gagal export PDF. Periksa Console browser.', 'error');
+      }
+    }
+
+    // ================== END EXPORT DATA PROBLEM ==================
+
     function calculateScores() {
       const problems = getFilteredProblems();
       const total = problems.length;
@@ -925,9 +1087,15 @@
 
           <!-- Problem List -->
           <div class="card p-6 md:p-8">
-            <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-gray-800 dark:text-white">
-              📋 DETAIL PROBLEM (${problems.length})
-            </h3>
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+              <h3 class="text-2xl font-bold flex items-center gap-3 text-gray-800 dark:text-white">
+                📋 DETAIL PROBLEM (${problems.length})
+              </h3>
+              <div class="flex flex-wrap gap-3">
+                <button type="button" onclick="exportProblemsExcel()" class="btn btn-success">📊 EXPORT EXCEL</button>
+                <button type="button" onclick="exportProblemsPDF()" class="btn btn-danger">📄 EXPORT PDF</button>
+              </div>
+            </div>
             <div class="space-y-4">
               ${problems.length === 0 ? `
                 <div class="text-center py-12 opacity-70 text-gray-600 dark:text-gray-400">
