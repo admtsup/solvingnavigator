@@ -6,6 +6,10 @@
   <title>⚡ SOLVING NAVIGATOR</title>
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"></script>
+  <!-- Export libraries (browser-side only; no database changes) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -1204,6 +1208,296 @@
       `;
     }
 
+
+    // ============================================================
+    // EXPORT DATA PROBLEM
+    // Hanya membaca appData.problems yang sudah dimuat dari Supabase.
+    // Tidak melakukan INSERT, UPDATE, DELETE, atau perubahan schema.
+    // ============================================================
+
+    function renderExport() {
+      const problems = getExportProblems();
+
+      const filterLabel = [
+        filters.departemen ? `Departemen: ${filters.departemen}` : '',
+        filters.mesin ? `Mesin: ${filters.mesin}` : '',
+        filters.area ? `Area: ${filters.area}` : '',
+        filters.proses ? `Proses: ${filters.proses}` : ''
+      ].filter(Boolean);
+
+      return `
+        <div class="space-y-6">
+          <div class="card p-6 md:p-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+              <div>
+                <h2 class="text-3xl font-bold text-gray-800 dark:text-white">📥 EXPORT DATA PROBLEM</h2>
+                <p class="mt-2 text-gray-600 dark:text-gray-400">
+                  Unduh data problem yang sudah tersimpan di database.
+                </p>
+              </div>
+              <div class="rounded-xl px-5 py-4 bg-blue-50 dark:bg-blue-900/30">
+                <div class="text-sm text-gray-600 dark:text-gray-300">Total data sesuai filter</div>
+                <div class="text-3xl font-black text-blue-600 dark:text-blue-400">${problems.length}</div>
+              </div>
+            </div>
+
+            <div class="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4 mb-6">
+              <p class="font-bold text-blue-800 dark:text-blue-300">ℹ️ Informasi Export</p>
+              <p class="text-sm mt-1 text-blue-700 dark:text-blue-200">
+                Export hanya membaca data. Tidak ada data yang ditulis kembali ke Supabase.
+                Foto ditampilkan sebagai status ADA/TIDAK ADA, bukan disisipkan ke file laporan.
+              </p>
+            </div>
+
+            <div class="mb-6">
+              <h3 class="font-bold text-gray-800 dark:text-white mb-3">Filter aktif</h3>
+              ${
+                filterLabel.length
+                  ? `<div class="flex flex-wrap gap-2">${filterLabel.map(label => `<span class="badge badge-productivity">${escapeExportHtml(label)}</span>`).join('')}</div>`
+                  : `<p class="text-sm text-gray-500 dark:text-gray-400">Tidak ada filter aktif — semua data problem akan diekspor.</p>`
+              }
+              <div class="mt-4">
+                <button type="button" class="btn btn-secondary" onclick="resetExportFilters()">
+                  🔄 Reset Filter
+                </button>
+                <button type="button" class="btn btn-secondary ml-2" onclick="currentTab='dashboard'; renderApp();">
+                  📊 Lihat Dashboard
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div class="rounded-2xl border border-green-200 dark:border-green-800 p-6">
+                <div class="text-4xl mb-3">📗</div>
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white">Export Excel</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 mb-5">
+                  Cocok untuk rekap, filter lanjutan, dan analisis data.
+                </p>
+                <button type="button" onclick="exportProblemsExcel()" class="btn btn-success w-full">
+                  ⬇️ DOWNLOAD EXCEL (.xlsx)
+                </button>
+              </div>
+
+              <div class="rounded-2xl border border-red-200 dark:border-red-800 p-6">
+                <div class="text-4xl mb-3">📕</div>
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white">Export PDF</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 mb-5">
+                  Cocok untuk laporan dan dokumentasi data problem.
+                </p>
+                <button type="button" onclick="exportProblemsPDF()" class="btn btn-danger w-full">
+                  ⬇️ DOWNLOAD PDF (.pdf)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-6">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">👀 Pratinjau Data (${Math.min(problems.length, 10)} dari ${problems.length})</h3>
+            ${
+              problems.length === 0
+                ? `<p class="text-center py-8 text-gray-500 dark:text-gray-400">Belum ada data problem untuk diekspor.</p>`
+                : `<div class="overflow-x-auto">
+                    <table class="min-w-full text-sm border-collapse">
+                      <thead>
+                        <tr class="bg-blue-600 text-white">
+                          <th class="p-3 text-left border">No</th>
+                          <th class="p-3 text-left border">Tanggal</th>
+                          <th class="p-3 text-left border">Departemen</th>
+                          <th class="p-3 text-left border">Mesin</th>
+                          <th class="p-3 text-left border">Kategori</th>
+                          <th class="p-3 text-left border">Judul Problem</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${problems.slice(0, 10).map((p, i) => `
+                          <tr class="${i % 2 ? 'bg-gray-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-900'}">
+                            <td class="p-3 border dark:border-slate-700">${i + 1}</td>
+                            <td class="p-3 border dark:border-slate-700 whitespace-nowrap">${escapeExportHtml(formatExportDate(p.created_at))}</td>
+                            <td class="p-3 border dark:border-slate-700">${escapeExportHtml(p.departemen || '-')}</td>
+                            <td class="p-3 border dark:border-slate-700">${escapeExportHtml(p.mesin || '-')}</td>
+                            <td class="p-3 border dark:border-slate-700">${escapeExportHtml(p.kategori_problem || '-')}</td>
+                            <td class="p-3 border dark:border-slate-700">${escapeExportHtml(p.judul_problem || '-')}</td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>
+                  </div>`
+            }
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeExportHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, function(char) {
+        return {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        }[char];
+      });
+    }
+
+    function getExportProblems() {
+      return getFilteredProblems().slice().sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      });
+    }
+
+    function formatExportDate(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleString('id-ID');
+    }
+
+    function resetExportFilters() {
+      filters = { departemen: '', mesin: '', area: '', proses: '' };
+      renderApp();
+      showToast('Filter berhasil direset.');
+    }
+
+    function exportProblemsExcel() {
+      try {
+        if (typeof XLSX === 'undefined') {
+          showToast('Library Excel belum berhasil dimuat. Periksa koneksi internet.', 'error');
+          return;
+        }
+
+        const problems = getExportProblems();
+        if (!problems.length) {
+          showToast('Tidak ada data problem untuk diekspor.', 'error');
+          return;
+        }
+
+        const excelData = problems.map((p, index) => ({
+          'No': index + 1,
+          'Tanggal Input': formatExportDate(p.created_at),
+          'Inisial Personil': p.inisial_personil || '',
+          'Departemen': p.departemen || '',
+          'Area': p.area || '',
+          'Proses': p.proses || '',
+          'Mesin': p.mesin || '',
+          'Nama Produk': p.nama_produk || '',
+          'Kategori Problem': p.kategori_problem || '',
+          'Judul Problem': p.judul_problem || '',
+          'Investigasi': p.investigasi || '',
+          'Foto Kejadian': p.foto_kejadian ? 'ADA' : 'TIDAK ADA',
+          'Action Perbaikan': p.action || '',
+          'Foto Perbaikan': p.foto_perbaikan ? 'ADA' : 'TIDAK ADA',
+          'Evaluasi': p.evaluasi || ''
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(excelData);
+        worksheet['!cols'] = [
+          { wch: 6 }, { wch: 22 }, { wch: 18 }, { wch: 25 }, { wch: 18 },
+          { wch: 22 }, { wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 40 },
+          { wch: 50 }, { wch: 18 }, { wch: 50 }, { wch: 18 }, { wch: 40 }
+        ];
+        worksheet['!autofilter'] = { ref: worksheet['!ref'] };
+        worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Problem');
+        XLSX.writeFile(
+          workbook,
+          'Solving_Navigator_Problem_' + new Date().toISOString().slice(0, 10) + '.xlsx'
+        );
+
+        showToast('✅ Export Excel berhasil!');
+      } catch (error) {
+        console.error('Export Excel error:', error);
+        showToast('❌ Gagal export Excel. Buka Console untuk detail.', 'error');
+      }
+    }
+
+    function exportProblemsPDF() {
+      try {
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+          showToast('Library PDF belum berhasil dimuat. Periksa koneksi internet.', 'error');
+          return;
+        }
+
+        const problems = getExportProblems();
+        if (!problems.length) {
+          showToast('Tidak ada data problem untuk diekspor.', 'error');
+          return;
+        }
+
+        const jsPDF = window.jspdf.jsPDF;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.text('SOLVING NAVIGATOR', 12, 14);
+        doc.setFontSize(12);
+        doc.text('LAPORAN DATA PROBLEM', 12, 21);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text('Tanggal Export: ' + new Date().toLocaleString('id-ID'), 12, 28);
+        doc.text('Total Data: ' + problems.length + ' problem', 12, 34);
+
+        const rows = problems.map((p, index) => [
+          index + 1,
+          formatExportDate(p.created_at),
+          p.inisial_personil || '-',
+          p.departemen || '-',
+          p.area || '-',
+          p.proses || '-',
+          p.mesin || '-',
+          p.nama_produk || '-',
+          p.kategori_problem || '-',
+          p.judul_problem || '-',
+          p.investigasi || '-',
+          p.action || '-',
+          p.evaluasi || '-'
+        ]);
+
+        doc.autoTable({
+          startY: 39,
+          head: [[
+            'No', 'Tanggal Input', 'Personil', 'Departemen', 'Area', 'Proses',
+            'Mesin', 'Nama Produk', 'Kategori', 'Judul Problem',
+            'Investigasi', 'Action Perbaikan', 'Evaluasi'
+          ]],
+          body: rows,
+          theme: 'grid',
+          styles: {
+            font: 'helvetica',
+            fontSize: 6.5,
+            cellPadding: 1.8,
+            overflow: 'linebreak',
+            valign: 'top'
+          },
+          headStyles: {
+            fillColor: [37, 99, 235],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+          },
+          alternateRowStyles: { fillColor: [239, 246, 255] },
+          margin: { top: 10, right: 8, bottom: 13, left: 8 },
+          didDrawPage: function(data) {
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.text('SOLVING NAVIGATOR', 8, pageHeight - 5);
+            doc.text('Halaman ' + data.pageNumber, pageWidth - 8, pageHeight - 5, { align: 'right' });
+          }
+        });
+
+        doc.save('Solving_Navigator_Problem_' + new Date().toISOString().slice(0, 10) + '.pdf');
+        showToast('✅ Export PDF berhasil!');
+      } catch (error) {
+        console.error('Export PDF error:', error);
+        showToast('❌ Gagal export PDF. Buka Console untuk detail.', 'error');
+      }
+    }
+
     // Render manage page
     function renderManage() {
       if (!supabase) {
@@ -1487,6 +1781,7 @@
         switch (currentTab) {
           case 'dashboard': content = renderDashboard(); break;
           case 'input': content = renderInput(); break;
+          case 'export': content = renderExport(); break;
           case 'manage': content = renderManage(); break;
           case 'history': content = renderHistory(); break;
           default: content = renderDashboard();
@@ -1523,6 +1818,11 @@
                   ✏️ INPUT PROBLEM
                 </button>
                 
+                <button onclick="currentTab = 'export'; renderApp();" 
+                        class="tab ${currentTab === 'export' ? 'active' : ''}">
+                  📥 EXPORT DATA
+                </button>
+
                 <button onclick="currentTab = 'manage'; renderApp();" 
                         class="tab ${currentTab === 'manage' ? 'active' : ''}">
                   ⚙️ MANAGE DATA
