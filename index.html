@@ -297,6 +297,46 @@
     .image-preview-success {
       border-color: #10b981;
     }
+
+    /* Pagination */
+    .page-btn {
+      min-width: 40px;
+      height: 40px;
+      padding: 0 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      border: 2px solid #e5e7eb;
+      background: white;
+      color: #374151;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dark .page-btn {
+      background: #334155;
+      border-color: #475569;
+      color: #f1f5f9;
+    }
+
+    .page-btn:hover:not(:disabled) {
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+
+    .page-btn.active {
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+      border-color: transparent;
+      color: white;
+    }
+
+    .page-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -351,6 +391,11 @@
       area: '',
       proses: ''
     };
+
+    // === SEARCH & PAGINATION STATE ===
+    let searchQuery = '';
+    let currentPage = 1;
+    const ITEMS_PER_PAGE = 20;
 
     // Theme management
     let isDarkMode = localStorage.getItem('theme') === 'dark';
@@ -501,8 +546,38 @@
       return problems;
     }
 
+    // === SEARCH HELPER: filter problem berdasarkan searchQuery ===
+    function applySearch(problems) {
+      if (!searchQuery || !searchQuery.trim()) return problems;
+      const q = searchQuery.trim().toUpperCase();
+      return problems.filter(p => {
+        const haystack = [
+          p.judul_problem,
+          p.inisial_personil,
+          p.nama_produk,
+          p.investigasi,
+          p.action,
+          p.evaluasi,
+          p.departemen,
+          p.mesin,
+          p.area,
+          p.proses,
+          p.kategori_problem
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toUpperCase();
+        return haystack.includes(q);
+      });
+    }
+
+    // === GET PROBLEMS SETELAH FILTER + SEARCH ===
+    function getSearchedFilteredProblems() {
+      return applySearch(getFilteredProblems());
+    }
+
     function calculateScores() {
-      const problems = getFilteredProblems();
+      const problems = getSearchedFilteredProblems();
       const total = problems.length;
       const quality = problems.filter(p => p.kategori_problem === 'QUALITY').length;
       const productivity = problems.filter(p => p.kategori_problem === 'PRODUCTIVITY').length;
@@ -636,6 +711,7 @@
 
         showToast('✅ Problem berhasil disimpan!');
         currentTab = 'dashboard';
+        currentPage = 1;
         await loadData();
 
       } catch (error) {
@@ -1081,11 +1157,104 @@
       }
     }
 
+    // ============================================================
+    // SEARCH & PAGINATION HANDLERS
+    // ============================================================
+
+    function handleSearchInput(value) {
+      searchQuery = value;
+      currentPage = 1; // reset ke halaman 1 setiap kali search berubah
+      renderApp();
+    }
+
+    function clearSearch() {
+      searchQuery = '';
+      currentPage = 1;
+      renderApp();
+    }
+
+    function goToPage(page) {
+      currentPage = page;
+      renderApp();
+      // scroll ke atas list problem
+      const listEl = document.getElementById('problem-list-anchor');
+      if (listEl) {
+        listEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    // === PAGINATION RENDERER ===
+    function renderPagination(totalItems, totalPages) {
+      if (totalPages <= 1) return '';
+
+      const pages = [];
+      const maxVisible = 5;
+      let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+      let end = Math.min(totalPages, start + maxVisible - 1);
+      
+      if (end - start + 1 < maxVisible) {
+        start = Math.max(1, end - maxVisible + 1);
+      }
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      return `
+        <div class="flex flex-col items-center gap-3 mt-6">
+          <div class="text-sm text-gray-600 dark:text-gray-400">
+            Menampilkan <span class="font-bold">${((currentPage - 1) * ITEMS_PER_PAGE) + 1}</span>
+            – <span class="font-bold">${Math.min(currentPage * ITEMS_PER_PAGE, totalItems)}</span>
+            dari <span class="font-bold">${totalItems}</span> problem
+          </div>
+          <div class="flex flex-wrap items-center justify-center gap-2">
+            <button type="button" class="page-btn" 
+                    onclick="goToPage(${currentPage - 1})"
+                    ${currentPage === 1 ? 'disabled' : ''}>
+              ← Prev
+            </button>
+
+            ${start > 1 ? `
+              <button type="button" class="page-btn" onclick="goToPage(1)">1</button>
+              ${start > 2 ? `<span class="px-2 text-gray-400">...</span>` : ''}
+            ` : ''}
+
+            ${pages.map(page => `
+              <button type="button" class="page-btn ${page === currentPage ? 'active' : ''}"
+                      onclick="goToPage(${page})">
+                ${page}
+              </button>
+            `).join('')}
+
+            ${end < totalPages ? `
+              ${end < totalPages - 1 ? `<span class="px-2 text-gray-400">...</span>` : ''}
+              <button type="button" class="page-btn" onclick="goToPage(${totalPages})">${totalPages}</button>
+            ` : ''}
+
+            <button type="button" class="page-btn" 
+                    onclick="goToPage(${currentPage + 1})"
+                    ${currentPage === totalPages ? 'disabled' : ''}>
+              Next →
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
     // Render dashboard
     function renderDashboard() {
       getMasterDataFromRecords();
       const scores = calculateScores();
-      const problems = getFilteredProblems();
+      const allProblems = getSearchedFilteredProblems();
+
+      // Pagination calculation
+      const totalItems = allProblems.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+      if (currentPage > totalPages) currentPage = totalPages;
+      if (currentPage < 1) currentPage = 1;
+      const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+      const endIdx = startIdx + ITEMS_PER_PAGE;
+      const problems = allProblems.slice(startIdx, endIdx);
 
       if (!supabase) {
         return `
@@ -1101,12 +1270,38 @@
           <!-- Filter Section -->
           <div class="score-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
             <h2 class="text-3xl font-bold mb-6 flex items-center gap-3 text-white">
-              🔍 FILTER DATA
+              🔍 FILTER & SEARCH
             </h2>
+
+            <!-- Search Box -->
+            <div class="mb-5">
+              <label class="block mb-2 font-bold text-sm text-white/90">🔎 CARI PROBLEM</label>
+              <div class="relative">
+                <input type="text" 
+                       id="search-input"
+                       value="${escapeExportHtml(searchQuery)}"
+                       placeholder="Cari judul, personil, produk, investigasi, mesin..."
+                       class="w-full px-4 py-3 pr-12 rounded-xl border-2 border-white/30 bg-white/20 backdrop-blur-sm text-white placeholder-white/60"
+                       oninput="handleSearchInput(this.value);">
+                ${searchQuery ? `
+                  <button type="button" 
+                          onclick="clearSearch();"
+                          class="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/30 hover:bg-white/50 text-white font-bold flex items-center justify-center transition">
+                    ✕
+                  </button>
+                ` : ''}
+              </div>
+              ${searchQuery ? `
+                <p class="mt-2 text-xs text-white/80">
+                  Menampilkan hasil untuk: <span class="font-bold">"${escapeExportHtml(searchQuery)}"</span>
+                </p>
+              ` : ''}
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label class="block mb-2 font-bold text-sm text-white/90">📂 DEPARTEMEN</label>
-                <select id="filter-departemen" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/20 backdrop-blur-sm text-white" onchange="filters.departemen = this.value; renderApp();">
+                <select id="filter-departemen" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/20 backdrop-blur-sm text-white" onchange="filters.departemen = this.value; currentPage = 1; renderApp();">
                   <option value="">SEMUA</option>
                   ${masterData.departemen.map(d => `
                     <option value="${d}" ${filters.departemen === d ? 'selected' : ''}>${d}</option>
@@ -1115,7 +1310,7 @@
               </div>
               <div>
                 <label class="block mb-2 font-bold text-sm text-white/90">⚙️ MESIN</label>
-                <select id="filter-mesin" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/20 backdrop-blur-sm text-white" onchange="filters.mesin = this.value; renderApp();">
+                <select id="filter-mesin" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/20 backdrop-blur-sm text-white" onchange="filters.mesin = this.value; currentPage = 1; renderApp();">
                   <option value="">SEMUA</option>
                   ${masterData.mesin.map(m => `
                     <option value="${m}" ${filters.mesin === m ? 'selected' : ''}>${m}</option>
@@ -1124,7 +1319,7 @@
               </div>
               <div>
                 <label class="block mb-2 font-bold text-sm text-white/90">📍 AREA</label>
-                <select id="filter-area" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/20 backdrop-blur-sm text-white" onchange="filters.area = this.value; renderApp();">
+                <select id="filter-area" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/20 backdrop-blur-sm text-white" onchange="filters.area = this.value; currentPage = 1; renderApp();">
                   <option value="">SEMUA</option>
                   ${masterData.area.map(a => `
                     <option value="${a}" ${filters.area === a ? 'selected' : ''}>${a}</option>
@@ -1133,7 +1328,7 @@
               </div>
               <div>
                 <label class="block mb-2 font-bold text-sm text-white/90">🔧 PROSES</label>
-                <select id="filter-proses" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/20 backdrop-blur-sm text-white" onchange="filters.proses = this.value; renderApp();">
+                <select id="filter-proses" class="w-full px-4 py-3 rounded-xl border-2 border-white/30 bg-white/20 backdrop-blur-sm text-white" onchange="filters.proses = this.value; currentPage = 1; renderApp();">
                   <option value="">SEMUA</option>
                   ${masterData.proses.map(p => `
                     <option value="${p}" ${filters.proses === p ? 'selected' : ''}>${p}</option>
@@ -1141,6 +1336,15 @@
                 </select>
               </div>
             </div>
+
+            ${(filters.departemen || filters.mesin || filters.area || filters.proses || searchQuery) ? `
+              <div class="mt-4 flex justify-end">
+                <button type="button" onclick="resetAllFilters();" 
+                        class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-bold text-sm transition">
+                  🔄 Reset Semua Filter
+                </button>
+              </div>
+            ` : ''}
           </div>
 
           <!-- Score Cards -->
@@ -1164,15 +1368,31 @@
           </div>
 
           <!-- Problem List -->
-          <div class="card p-6 md:p-8">
-            <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-gray-800 dark:text-white">
-              📋 DETAIL PROBLEM (${problems.length})
-            </h3>
+          <div class="card p-6 md:p-8" id="problem-list-anchor">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-6">
+              <h3 class="text-2xl font-bold flex items-center gap-3 text-gray-800 dark:text-white">
+                📋 DETAIL PROBLEM
+              </h3>
+              <div class="text-sm text-gray-600 dark:text-gray-400">
+                Total: <span class="font-bold text-blue-600 dark:text-blue-400">${totalItems}</span> problem
+                ${totalItems > 0 ? ` • Halaman ${currentPage} dari ${totalPages}` : ''}
+              </div>
+            </div>
+
             <div class="space-y-4">
-              ${problems.length === 0 ? `
+              ${totalItems === 0 ? `
                 <div class="text-center py-12 opacity-70 text-gray-600 dark:text-gray-400">
-                  <p class="text-lg mb-2">Belum ada problem yang tercatat</p>
-                  <p class="text-sm">Pilih filter yang berbeda atau tambahkan problem baru</p>
+                  ${searchQuery ? `
+                    <p class="text-lg mb-2">Tidak ada problem yang cocok dengan pencarian "${escapeExportHtml(searchQuery)}"</p>
+                    <p class="text-sm mb-4">Coba kata kunci lain atau hapus filter</p>
+                    <button type="button" onclick="resetAllFilters();" 
+                            class="mt-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition">
+                      🔄 Reset Semua Filter
+                    </button>
+                  ` : `
+                    <p class="text-lg mb-2">Belum ada problem yang tercatat</p>
+                    <p class="text-sm">Pilih filter yang berbeda atau tambahkan problem baru</p>
+                  `}
                 </div>
               ` : ''}
               
@@ -1273,6 +1493,9 @@
                 </div>
               `).join('')}
             </div>
+
+            <!-- Pagination -->
+            ${renderPagination(totalItems, totalPages)}
           </div>
         </div>
       `;
@@ -1505,7 +1728,8 @@
         filters.departemen ? `Departemen: ${filters.departemen}` : '',
         filters.mesin ? `Mesin: ${filters.mesin}` : '',
         filters.area ? `Area: ${filters.area}` : '',
-        filters.proses ? `Proses: ${filters.proses}` : ''
+        filters.proses ? `Proses: ${filters.proses}` : '',
+        searchQuery ? `Search: "${searchQuery}"` : ''
       ].filter(Boolean);
 
       return `
@@ -1540,7 +1764,7 @@
                   : `<p class="text-sm text-gray-500 dark:text-gray-400">Tidak ada filter aktif — semua data problem akan diekspor.</p>`
               }
               <div class="mt-4">
-                <button type="button" class="btn btn-secondary" onclick="resetExportFilters()">
+                <button type="button" class="btn btn-secondary" onclick="resetAllFilters()">
                   🔄 Reset Filter
                 </button>
                 <button type="button" class="btn btn-secondary ml-2" onclick="currentTab='dashboard'; renderApp();">
@@ -1623,8 +1847,9 @@
       });
     }
 
+    // === EXPORT PROBLEMS: pakai search + filter juga ===
     function getExportProblems() {
-      return getFilteredProblems().slice().sort((a, b) => {
+      return getSearchedFilteredProblems().slice().sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateB - dateA;
@@ -1638,10 +1863,17 @@
       return date.toLocaleString('id-ID');
     }
 
-    function resetExportFilters() {
+    function resetAllFilters() {
       filters = { departemen: '', mesin: '', area: '', proses: '' };
+      searchQuery = '';
+      currentPage = 1;
       renderApp();
-      showToast('Filter berhasil direset.');
+      showToast('Semua filter & search berhasil direset.');
+    }
+
+    // Alias lama biar backward compatible
+    function resetExportFilters() {
+      resetAllFilters();
     }
 
     function exportProblemsExcel() {
