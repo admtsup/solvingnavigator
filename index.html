@@ -324,6 +324,8 @@
     let currentTab = 'dashboard';
     let isAuthenticated = false;
     let inactivityTimer = null;
+    let editingProblemId = null;
+    let manageView = 'menu'; // 'menu' | 'master' | 'database'
     let formData = {
       inisial_personil: '',
       departemen: '',
@@ -367,7 +369,7 @@
       isDarkMode = !isDarkMode;
       localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
       initTheme();
-      renderApp(); // Re-render untuk update theme
+      renderApp();
     }
 
     // Initialize Supabase
@@ -404,7 +406,6 @@
       if (!supabase) return;
 
       try {
-        // Tampilkan loading
         const contentDiv = document.getElementById('content');
         if (contentDiv) {
           contentDiv.innerHTML = `
@@ -415,14 +416,12 @@
           `;
         }
 
-        // Load data paralel
         const [problemsRes, mastersRes, historyRes] = await Promise.allSettled([
           supabase.from('problems').select('*').order('created_at', { ascending: false }),
           supabase.from('master_data').select('*').order('created_at', { ascending: false }),
           supabase.from('history').select('*').order('created_at', { ascending: false })
         ]);
 
-        // Update app data
         appData = {
           problems: problemsRes.status === 'fulfilled' && !problemsRes.value.error 
             ? problemsRes.value.data : [],
@@ -516,6 +515,8 @@
       if (currentTab === 'manage' && isAuthenticated) {
         inactivityTimer = setTimeout(() => {
           isAuthenticated = false;
+          editingProblemId = null;
+          manageView = 'menu';
           showToast('Sesi berakhir karena tidak ada aktivitas', 'error');
           renderApp();
         }, 300000);
@@ -554,7 +555,11 @@
         return;
       }
 
-      // Validasi
+      if (editingProblemId) {
+        showToast('Gunakan tombol SIMPAN PERUBAHAN untuk mode edit', 'error');
+        return;
+      }
+
       const requiredFields = [
         { key: 'inisial_personil', label: 'Inisial Personil' },
         { key: 'departemen', label: 'Departemen' },
@@ -607,7 +612,6 @@
 
         if (error) throw error;
 
-        // Tambahkan ke history
         await supabase.from('history').insert([{
           activity_description: `Problem baru ditambahkan: ${newRecord.judul_problem}`,
           departemen: newRecord.departemen,
@@ -616,7 +620,6 @@
           created_at: new Date().toISOString()
         }]);
 
-        // Reset form
         formData = {
           inisial_personil: '',
           departemen: '',
@@ -643,6 +646,239 @@
           btn.disabled = false;
           btn.textContent = 'SIMPAN PROBLEM';
         }
+      }
+    }
+
+    // ============================================================
+    // EDIT / DELETE PROBLEM
+    // ============================================================
+
+    function startEditProblem(problemId) {
+      if (!isAuthenticated) {
+        showToast('🔒 Hanya admin yang bisa edit problem', 'error');
+        return;
+      }
+
+      const problem = getProblems().find(p => p.id === problemId);
+      if (!problem) {
+        showToast('❌ Problem tidak ditemukan', 'error');
+        return;
+      }
+
+      editingProblemId = problemId;
+      formData = {
+        inisial_personil: problem.inisial_personil || '',
+        departemen: problem.departemen || '',
+        mesin: problem.mesin || '',
+        nama_produk: problem.nama_produk || '',
+        kategori_problem: problem.kategori_problem || '',
+        judul_problem: problem.judul_problem || '',
+        investigasi: problem.investigasi || '',
+        foto_kejadian: problem.foto_kejadian || '',
+        action: problem.action || '',
+        foto_perbaikan: problem.foto_perbaikan || '',
+        evaluasi: problem.evaluasi || ''
+      };
+
+      currentTab = 'input';
+      renderApp();
+      showToast('✏️ Mode edit aktif');
+    }
+
+    function cancelEditProblem() {
+      editingProblemId = null;
+      formData = {
+        inisial_personil: '',
+        departemen: '',
+        mesin: '',
+        nama_produk: '',
+        kategori_problem: '',
+        judul_problem: '',
+        investigasi: '',
+        foto_kejadian: '',
+        action: '',
+        foto_perbaikan: '',
+        evaluasi: ''
+      };
+      currentTab = 'manage';
+      manageView = 'database';
+      renderApp();
+      showToast('Edit dibatalkan');
+    }
+
+    async function submitEditProblem() {
+      if (!isAuthenticated) {
+        showToast('🔒 Sesi admin berakhir. Silakan login ulang.', 'error');
+        editingProblemId = null;
+        currentTab = 'manage';
+        manageView = 'menu';
+        renderApp();
+        return;
+      }
+
+      if (!supabase || !editingProblemId) {
+        showToast('❌ Tidak ada problem yang sedang diedit', 'error');
+        return;
+      }
+
+      const requiredFields = [
+        { key: 'inisial_personil', label: 'Inisial Personil' },
+        { key: 'departemen', label: 'Departemen' },
+        { key: 'kategori_problem', label: 'Kategori Problem' },
+        { key: 'judul_problem', label: 'Judul Problem' }
+      ];
+
+      const missingFields = requiredFields
+        .filter(field => !formData[field.key])
+        .map(field => field.label);
+
+      if (missingFields.length > 0) {
+        showToast(`Mohon lengkapi: ${missingFields.join(', ')}`, 'error');
+        return;
+      }
+
+      const btn = document.getElementById('submit-btn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading"></span> MENYIMPAN...';
+      }
+
+      try {
+        const masterRecord = appData.masters.find(r =>
+          r.departemen === formData.departemen &&
+          r.mesin === formData.mesin
+        );
+
+        const updateData = {
+          inisial_personil: toUpperCase(formData.inisial_personil),
+          departemen: toUpperCase(formData.departemen),
+          mesin: toUpperCase(formData.mesin),
+          area: masterRecord ? toUpperCase(masterRecord.area) : '',
+          proses: masterRecord ? toUpperCase(masterRecord.proses) : '',
+          nama_produk: toUpperCase(formData.nama_produk),
+          kategori_problem: toUpperCase(formData.kategori_problem),
+          judul_problem: toUpperCase(formData.judul_problem),
+          investigasi: toUpperCase(formData.investigasi),
+          foto_kejadian: formData.foto_kejadian || '',
+          action: toUpperCase(formData.action),
+          foto_perbaikan: formData.foto_perbaikan || '',
+          evaluasi: toUpperCase(formData.evaluasi)
+        };
+
+        const { error } = await supabase
+          .from('problems')
+          .update(updateData)
+          .eq('id', editingProblemId);
+
+        if (error) throw error;
+
+        await supabase.from('history').insert([{
+          activity_description: `Problem diupdate: ${updateData.judul_problem}`,
+          departemen: updateData.departemen,
+          mesin: updateData.mesin,
+          kategori_problem: updateData.kategori_problem,
+          created_at: new Date().toISOString()
+        }]);
+
+        editingProblemId = null;
+        formData = {
+          inisial_personil: '',
+          departemen: '',
+          mesin: '',
+          nama_produk: '',
+          kategori_problem: '',
+          judul_problem: '',
+          investigasi: '',
+          foto_kejadian: '',
+          action: '',
+          foto_perbaikan: '',
+          evaluasi: ''
+        };
+
+        showToast('✅ Problem berhasil diupdate!');
+        currentTab = 'manage';
+        manageView = 'database';
+        await loadData();
+
+      } catch (error) {
+        console.error('Error updating problem:', error);
+        showToast('❌ Gagal mengupdate problem', 'error');
+
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '💾 SIMPAN PERUBAHAN';
+        }
+      }
+    }
+
+    async function deleteProblem(problemId) {
+      if (!isAuthenticated) {
+        showToast('🔒 Hanya admin yang bisa hapus problem', 'error');
+        return;
+      }
+
+      if (!supabase || !problemId) return;
+
+      const problem = getProblems().find(p => p.id === problemId);
+      if (!problem) {
+        showToast('❌ Problem tidak ditemukan', 'error');
+        return;
+      }
+
+      const container = document.getElementById(`problem-${problemId}`);
+      if (!container) return;
+
+      const deleteBtn = container.querySelector('.problem-delete-btn');
+      if (!deleteBtn) return;
+
+      if (!deleteBtn.dataset.confirmed) {
+        deleteBtn.dataset.confirmed = 'true';
+        deleteBtn.textContent = '⚠️ KLIK LAGI UNTUK HAPUS';
+        deleteBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+        deleteBtn.classList.add('bg-orange-600', 'hover:bg-orange-700');
+
+        setTimeout(() => {
+          if (deleteBtn && deleteBtn.dataset.confirmed) {
+            deleteBtn.dataset.confirmed = '';
+            deleteBtn.textContent = '🗑️ HAPUS';
+            deleteBtn.classList.remove('bg-orange-600', 'hover:bg-orange-700');
+            deleteBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+          }
+        }, 3000);
+        return;
+      }
+
+      deleteBtn.disabled = true;
+      deleteBtn.innerHTML = '<span class="loading"></span> MENGHAPUS...';
+
+      try {
+        const { error } = await supabase
+          .from('problems')
+          .delete()
+          .eq('id', problemId);
+
+        if (error) throw error;
+
+        await supabase.from('history').insert([{
+          activity_description: `Problem dihapus: ${problem.judul_problem || '-'}`,
+          departemen: problem.departemen || '',
+          mesin: problem.mesin || '',
+          kategori_problem: problem.kategori_problem || '',
+          created_at: new Date().toISOString()
+        }]);
+
+        showToast('✅ Problem berhasil dihapus!');
+        await loadData();
+
+      } catch (error) {
+        console.error('Error deleting problem:', error);
+        showToast('❌ Gagal menghapus problem', 'error');
+
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = '🗑️ HAPUS';
+        deleteBtn.dataset.confirmed = '';
+        deleteBtn.classList.remove('bg-orange-600', 'hover:bg-orange-700');
+        deleteBtn.classList.add('bg-red-600', 'hover:bg-red-700');
       }
     }
 
@@ -941,7 +1177,7 @@
               ` : ''}
               
               ${problems.map(p => `
-                <div class="card p-6 hover:shadow-lg transition-all duration-300">
+                <div id="problem-${p.id}" class="card p-6 hover:shadow-lg transition-all duration-300">
                   <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
                     <div class="flex-1">
                       <h4 class="text-xl font-bold mb-2 text-gray-800 dark:text-white">${p.judul_problem || 'Tidak ada judul'}</h4>
@@ -1015,6 +1251,25 @@
                       ` : ''}
                     </div>
                   ` : ''}
+
+                  ${isAuthenticated ? `
+                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex gap-3 flex-wrap">
+                      <button type="button" onclick="startEditProblem('${p.id}')"
+                              class="flex-1 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition text-sm">
+                        ✏️ EDIT
+                      </button>
+                      <button type="button" class="problem-delete-btn flex-1 py-2.5 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition text-sm"
+                              onclick="deleteProblem('${p.id}')">
+                        🗑️ HAPUS
+                      </button>
+                    </div>
+                  ` : `
+                    <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <p class="text-xs text-gray-400 dark:text-gray-500">
+                        🔒 Login admin untuk edit / hapus problem
+                      </p>
+                    </div>
+                  `}
                 </div>
               `).join('')}
             </div>
@@ -1039,8 +1294,15 @@
       return `
         <div class="card p-6 md:p-8 max-w-4xl mx-auto">
           <h2 class="text-3xl font-bold mb-8 flex items-center gap-3 text-gray-800 dark:text-white">
-            ✏️ INPUT PROBLEM BARU
+            ${editingProblemId ? '✏️ EDIT PROBLEM' : '✏️ INPUT PROBLEM BARU'}
           </h2>
+          ${editingProblemId ? `
+            <div class="mb-6 p-4 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700">
+              <p class="text-sm font-bold text-yellow-800 dark:text-yellow-300">
+                ⚠️ Kamu sedang mengedit problem yang sudah ada. Perubahan akan menimpa data lama.
+              </p>
+            </div>
+          ` : ''}
           
           <form id="problem-form" class="space-y-6">
             <!-- Row 1 -->
@@ -1157,6 +1419,11 @@
                      onchange="handleImageUpload(this.files[0])
                                .then(data => { formData.foto_kejadian = data; showToast('✅ Foto berhasil diupload'); })
                                .catch(error => { showToast('❌ ' + error.message, 'error'); });">
+              ${formData.foto_kejadian ? `
+                <p class="mt-2 text-xs text-green-600 dark:text-green-400 font-bold">
+                  ✅ Foto kejadian sudah ada${editingProblemId ? ' (upload baru untuk mengganti)' : ''}
+                </p>
+              ` : ''}
             </div>
 
             <!-- Action -->
@@ -1180,6 +1447,11 @@
                      onchange="handleImageUpload(this.files[0])
                                .then(data => { formData.foto_perbaikan = data; showToast('✅ Foto berhasil diupload'); })
                                .catch(error => { showToast('❌ ' + error.message, 'error'); });">
+              ${formData.foto_perbaikan ? `
+                <p class="mt-2 text-xs text-green-600 dark:text-green-400 font-bold">
+                  ✅ Foto perbaikan sudah ada${editingProblemId ? ' (upload baru untuk mengganti)' : ''}
+                </p>
+              ` : ''}
             </div>
 
             <!-- Evaluasi -->
@@ -1195,10 +1467,23 @@
             </div>
 
             <!-- Submit Button -->
-            <button type="button" onclick="submitProblem();" id="submit-btn" 
-                    class="w-full py-4 text-white rounded-xl font-bold hover:opacity-90 transition-all duration-300 shadow-lg text-lg btn-primary">
-              💾 SIMPAN PROBLEM
-            </button>
+            ${editingProblemId ? `
+              <div class="flex flex-col md:flex-row gap-3">
+                <button type="button" onclick="submitEditProblem();" id="submit-btn" 
+                        class="flex-1 py-4 text-white rounded-xl font-bold hover:opacity-90 transition-all duration-300 shadow-lg text-lg btn-primary">
+                  💾 SIMPAN PERUBAHAN
+                </button>
+                <button type="button" onclick="cancelEditProblem();" 
+                        class="flex-1 py-4 rounded-xl font-bold transition-all duration-300 shadow-lg text-lg btn-secondary">
+                  ❌ BATAL EDIT
+                </button>
+              </div>
+            ` : `
+              <button type="button" onclick="submitProblem();" id="submit-btn" 
+                      class="w-full py-4 text-white rounded-xl font-bold hover:opacity-90 transition-all duration-300 shadow-lg text-lg btn-primary">
+                💾 SIMPAN PROBLEM
+              </button>
+            `}
 
             <p class="text-sm text-gray-500 dark:text-gray-400 text-center mt-4">
               * Field wajib diisi
@@ -1211,8 +1496,6 @@
 
     // ============================================================
     // EXPORT DATA PROBLEM
-    // Hanya membaca appData.problems yang sudah dimuat dari Supabase.
-    // Tidak melakukan INSERT, UPDATE, DELETE, atau perubahan schema.
     // ============================================================
 
     function renderExport() {
@@ -1498,8 +1781,10 @@
       }
     }
 
-    // Render manage page
-    function renderManage() {
+    // ============================================================
+    // MANAGE DATA HUB — gerbang login + menu pilihan
+    // ============================================================
+    function renderManageHub() {
       if (!supabase) {
         return `
           <div class="card p-8 text-center">
@@ -1508,16 +1793,16 @@
         `;
       }
 
-      getMasterDataFromRecords();
-      const masterRecords = appData.masters || [];
-
-      // Login form jika belum authenticated
+      // === BELUM LOGIN → tampil form login ===
       if (!isAuthenticated) {
         return `
           <div class="card p-6 md:p-8 max-w-md mx-auto">
             <h2 class="text-3xl font-bold mb-8 text-center flex items-center justify-center gap-3 text-gray-800 dark:text-white">
               🔐 LOGIN ADMIN
             </h2>
+            <p class="text-center text-sm text-gray-600 dark:text-gray-400 mb-6">
+              Login untuk mengakses Manage Master Data & Manage Database
+            </p>
             <form id="login-form" class="space-y-6">
               <div>
                 <label class="block mb-2 font-bold flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -1529,6 +1814,7 @@
                 const pwd = document.getElementById('password').value; 
                 if (pwd.toUpperCase() === '${ADMIN_PASSWORD.toUpperCase()}') { 
                   isAuthenticated = true; 
+                  manageView = 'menu';
                   resetInactivityTimer(); 
                   renderApp(); 
                   showToast('✅ Login berhasil!'); 
@@ -1546,15 +1832,102 @@
         `;
       }
 
-      // Jika sudah login, tampilkan manage interface
+      // === SUDAH LOGIN → tampil menu pilihan ===
+      if (manageView === 'menu') {
+        return `
+          <div class="card p-6 md:p-8" onmousemove="resetInactivityTimer()" onclick="resetInactivityTimer()">
+            <!-- Header -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+              <div>
+                <h2 class="text-3xl font-bold flex items-center gap-3 text-gray-800 dark:text-white">
+                  ⚙️ MANAGE DATA
+                </h2>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  Pilih area yang ingin dikelola.
+                </p>
+              </div>
+              <button onclick="isAuthenticated = false; manageView = 'menu'; editingProblemId = null; renderApp(); showToast('✅ Logout berhasil');" 
+                      class="btn-danger px-6 py-3">
+                🚪 LOGOUT
+              </button>
+            </div>
+
+            <!-- Pilihan menu -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Manage Master Data -->
+              <button type="button" 
+                      onclick="manageView = 'master'; renderApp();"
+                      class="card p-8 text-left hover:shadow-xl transition-all duration-300 group cursor-pointer">
+                <div class="text-5xl mb-4">⚙️</div>
+                <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">
+                  MANAGE MASTER DATA
+                </h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  Kelola data master: departemen, area, proses, dan mesin.
+                  Data ini dipakai sebagai pilihan saat input problem.
+                </p>
+                <div class="mt-4 text-blue-600 dark:text-blue-400 font-bold text-sm">
+                  Buka →
+                </div>
+              </button>
+
+              <!-- Manage Database -->
+              <button type="button" 
+                      onclick="manageView = 'database'; renderApp();"
+                      class="card p-8 text-left hover:shadow-xl transition-all duration-300 group cursor-pointer">
+                <div class="text-5xl mb-4">🗄️</div>
+                <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">
+                  MANAGE DATABASE
+                </h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  Kelola problem yang sudah diinput: edit atau hapus data.
+                  Setiap aksi tercatat di History.
+                </p>
+                <div class="mt-4 text-blue-600 dark:text-blue-400 font-bold text-sm">
+                  Buka →
+                </div>
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      // === SUB-VIEW: MASTER ===
+      if (manageView === 'master') {
+        return renderManageMasterView();
+      }
+
+      // === SUB-VIEW: DATABASE ===
+      if (manageView === 'database') {
+        return renderManageDatabaseView();
+      }
+
+      // fallback
+      manageView = 'menu';
+      return renderManageHub();
+    }
+
+    // ============================================================
+    // MANAGE MASTER VIEW — hanya muncul setelah login
+    // ============================================================
+    function renderManageMasterView() {
+      getMasterDataFromRecords();
+      const masterRecords = appData.masters || [];
+
       return `
         <div class="card p-6 md:p-8" onmousemove="resetInactivityTimer()" onclick="resetInactivityTimer()">
-          <!-- Header dengan logout -->
+          <!-- Header -->
           <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-            <h2 class="text-3xl font-bold flex items-center gap-3 text-gray-800 dark:text-white">
-              ⚙️ MANAGE MASTER DATA
-            </h2>
-            <button onclick="isAuthenticated = false; renderApp(); showToast('✅ Logout berhasil');" 
+            <div class="flex items-center gap-3">
+              <button onclick="manageView = 'menu'; renderApp();" 
+                      class="px-4 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg font-bold hover:opacity-80 transition">
+                ← Kembali
+              </button>
+              <h2 class="text-3xl font-bold flex items-center gap-3 text-gray-800 dark:text-white">
+                ⚙️ MANAGE MASTER DATA
+              </h2>
+            </div>
+            <button onclick="isAuthenticated = false; manageView = 'menu'; editingProblemId = null; renderApp(); showToast('✅ Logout berhasil');" 
                     class="btn-danger px-6 py-3">
               🚪 LOGOUT
             </button>
@@ -1614,7 +1987,6 @@
             </div>
             
             <button type="button" onclick="
-              const form = document.getElementById('master-form');
               submitMasterData({ 
                 departemen: document.getElementById('dept').value, 
                 area: document.getElementById('area').value, 
@@ -1646,7 +2018,6 @@
             ${masterRecords.map(r => `
               <div id="master-${r.id}" class="card p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <!-- Departemen -->
                   <div>
                     <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700 dark:text-gray-300">
                       📂 DEPARTEMEN
@@ -1664,7 +2035,6 @@
                     </select>
                   </div>
                   
-                  <!-- Area -->
                   <div>
                     <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700 dark:text-gray-300">
                       📍 AREA
@@ -1675,7 +2045,6 @@
                     </select>
                   </div>
                   
-                  <!-- Proses -->
                   <div>
                     <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700 dark:text-gray-300">
                       🔧 PROSES
@@ -1684,7 +2053,6 @@
                            class="form-input text-sm">
                   </div>
                   
-                  <!-- Mesin -->
                   <div>
                     <label class="block text-xs mb-2 font-bold opacity-70 text-gray-700 dark:text-gray-300">
                       ⚙️ NAMA MESIN
@@ -1694,7 +2062,6 @@
                   </div>
                 </div>
                 
-                <!-- Action Buttons -->
                 <div class="flex gap-3">
                   <button class="edit-btn flex-1 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition text-sm"
                           onclick="toggleEditMaster(${r.id});">
@@ -1708,6 +2075,92 @@
               </div>
             `).join('')}
           </div>
+        </div>
+      `;
+    }
+
+    // ============================================================
+    // MANAGE DATABASE VIEW — hanya muncul setelah login
+    // ============================================================
+    function renderManageDatabaseView() {
+      const problems = getProblems().slice().sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      return `
+        <div class="card p-6 md:p-8" onmousemove="resetInactivityTimer()" onclick="resetInactivityTimer()">
+          <!-- Header -->
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <div class="flex items-center gap-3">
+              <button onclick="manageView = 'menu'; renderApp();" 
+                      class="px-4 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg font-bold hover:opacity-80 transition">
+                ← Kembali
+              </button>
+              <h2 class="text-3xl font-bold flex items-center gap-3 text-gray-800 dark:text-white">
+                🗄️ MANAGE DATABASE
+              </h2>
+            </div>
+            <button onclick="isAuthenticated = false; manageView = 'menu'; editingProblemId = null; renderApp(); showToast('✅ Logout berhasil');" 
+                    class="btn-danger px-6 py-3">
+              🚪 LOGOUT
+            </button>
+          </div>
+
+          <!-- Info banner -->
+          <div class="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4 mb-6">
+            <p class="font-bold text-blue-800 dark:text-blue-300">ℹ️ Total Problem: ${problems.length}</p>
+            <p class="text-sm mt-1 text-blue-700 dark:text-blue-200">
+              Klik EDIT untuk mengubah data, atau HAPUS untuk menghapus permanen. 
+              Setiap aksi tercatat di History.
+            </p>
+          </div>
+
+          <!-- List problem -->
+          ${problems.length === 0 ? `
+            <div class="text-center py-12 opacity-70 text-gray-600 dark:text-gray-400">
+              <p class="text-lg mb-2">Belum ada problem yang tersimpan</p>
+              <p class="text-sm">Tambahkan problem lewat tab INPUT PROBLEM</p>
+            </div>
+          ` : `
+            <div class="space-y-3">
+              ${problems.map(p => `
+                <div id="problem-${p.id}" class="card p-5 hover:shadow-lg transition-all duration-300">
+                  <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-3">
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 mb-2 flex-wrap">
+                        <span class="badge ${p.kategori_problem === 'QUALITY' ? 'badge-quality' : p.kategori_problem === 'PRODUCTIVITY' ? 'badge-productivity' : 'badge-safety'}">
+                          ${p.kategori_problem || 'UNKNOWN'}
+                        </span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                          🕐 ${p.created_at ? new Date(p.created_at).toLocaleString('id-ID') : '-'}
+                        </span>
+                      </div>
+                      <h4 class="font-bold text-gray-800 dark:text-white truncate">
+                        ${escapeExportHtml(p.judul_problem || '(Tanpa judul)')}
+                      </h4>
+                      <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        👤 ${escapeExportHtml(p.inisial_personil || '-')} 
+                        • 📂 ${escapeExportHtml(p.departemen || '-')} 
+                        • ⚙️ ${escapeExportHtml(p.mesin || '-')}
+                      </p>
+                    </div>
+                    <div class="flex gap-2 flex-shrink-0">
+                      <button type="button" onclick="startEditProblem('${p.id}')"
+                              class="px-4 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition text-sm">
+                        ✏️ EDIT
+                      </button>
+                      <button type="button" class="problem-delete-btn px-4 py-2.5 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition text-sm"
+                              onclick="deleteProblem('${p.id}')">
+                        🗑️ HAPUS
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `}
         </div>
       `;
     }
@@ -1782,7 +2235,7 @@
           case 'dashboard': content = renderDashboard(); break;
           case 'input': content = renderInput(); break;
           case 'export': content = renderExport(); break;
-          case 'manage': content = renderManage(); break;
+          case 'manage': content = renderManageHub(); break;
           case 'history': content = renderHistory(); break;
           default: content = renderDashboard();
         }
@@ -1823,7 +2276,7 @@
                   📥 EXPORT DATA
                 </button>
 
-                <button onclick="currentTab = 'manage'; renderApp();" 
+                <button onclick="currentTab = 'manage'; manageView = 'menu'; renderApp();" 
                         class="tab ${currentTab === 'manage' ? 'active' : ''}">
                   ⚙️ MANAGE DATA
                 </button>
@@ -1872,16 +2325,13 @@
     document.addEventListener('DOMContentLoaded', function() {
       console.log('DOM loaded, initializing app...');
       
-      // Setup theme toggle button
       const themeToggle = document.getElementById('theme-toggle');
       if (themeToggle) {
         themeToggle.addEventListener('click', toggleTheme);
       }
       
-      // Initialize theme
       initTheme();
       
-      // Initialize Supabase
       if (initSupabase()) {
         loadData();
       } else {
@@ -1889,16 +2339,15 @@
         showToast('⚠️ Aplikasi berjalan dalam mode offline', 'error');
       }
 
-      // Setup event listeners untuk menangani user activity
       document.addEventListener('click', resetInactivityTimer);
       document.addEventListener('mousemove', resetInactivityTimer);
       document.addEventListener('keypress', resetInactivityTimer);
     });
 
-    // Handle sebelum window ditutup
     window.addEventListener('beforeunload', function() {
       if (currentTab === 'manage' && isAuthenticated) {
         isAuthenticated = false;
+        manageView = 'menu';
       }
     });
   </script>
